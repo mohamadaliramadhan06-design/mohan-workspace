@@ -105,11 +105,12 @@ if data_qr:
             nama_file_csv = f"laporan_web/Presensi_{data_qr}.csv"
             file_baru = not os.path.exists(nama_file_csv)
             
+            # PENTING: Penggunaan delimiter koma (,) agar kompatibel dengan pembacaan Streamlit DataFrame secara default
             with open(nama_file_csv, "a", encoding="utf-8") as f:
                 if file_baru:
-                    f.write("sep=;\n")  
-                    f.write("Tanggal;Jam;Nama Peserta;Bukti Foto\n")
-                f.write(f"{tanggal};{jam};{nama_peserta};{string_foto_bukti}\n")
+                    f.write("Tanggal,Jam,Nama Peserta,Bukti Foto\n")
+                # Menggunakan koma standar agar data tidak bergeser antar-kolom
+                f.write(f'"{tanggal}","{jam}","{nama_peserta}","{string_foto_bukti}"\n')
             
             st.balloons() 
             st.success(f"Terima kasih {nama_peserta}, Anda berhasil absen!")
@@ -121,20 +122,22 @@ if data_qr:
     file_target = f"laporan_web/Presensi_{data_qr}.csv"
     if os.path.exists(file_target):
         try:
-            df = pd.read_csv(file_target, sep=";", skiprows=1, header=0, on_bad_lines="skip")
+            # Membaca file CSV standar berbasis koma (,)
+            df = pd.read_csv(file_target, on_bad_lines="skip")
+            df.columns = df.columns.str.strip()
             
-            # SULAP: Mengubah teks kode Base64 menjadi kolom gambar asli di tabel web kamu!
+            konfigurasi_kolom = {}
+            if "Bukti Foto" in df.columns:
+                konfigurasi_kolom["Bukti Foto"] = st.column_config.ImageColumn(
+                    "Foto Bukti", help="Foto bukti di lokasi kegiatan"
+                )
+            
             st.dataframe(
                 df,
-                column_config={
-                    "Bukti Foto": st.column_config.ImageColumn(
-                        "Foto Bukti", help="Foto bukti di lokasi kegiatan"
-                    )
-                },
+                column_config=konfigurasi_kolom,
                 use_container_width=True
             )
             
-            # TOMBOL UNDUH FILE ASLI
             csv_data = df.to_csv(index=False).encode('utf-8')
             st.download_button(
                 label="📥 Download Rekap Absen (Excel .csv)",
