@@ -1,48 +1,20 @@
 import streamlit as st
-import openpyxl
-from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-import os
+from streamlit_gsheets import GSheetsConnection
 from datetime import datetime
 import pandas as pd
 import hashlib
 
-# Nama file database Excel harian
-DB_FILE = "Database_Multiuser.xlsx"
-
 def hash_password(password):
     return hashlib.sha256(str.encode(password)).hexdigest()
 
-def inisialisasi_database():
-    if not os.path.exists(DB_FILE):
-        wb = openpyxl.Workbook()
-        
-        # Sheet 1: Data Akun User
-        ws_users = wb.active
-        ws_users.title = "Users"
-        ws_users.append(["username", "password"])
-        
-        # Sheet 2: Data Pengeluaran Semua User
-        ws_data = wb.create_sheet(title="Pengeluaran")
-        headers = ["Username", "Hari", "Tanggal", "Bulan", "Nama Barang / Kebutuhan", "Harga (Rp)"]
-        ws_data.append(headers)
-        
-        # Styling Header Pengeluaran
-        dark_emerald = "1B4D3E"
-        font_header = Font(name="Segoe UI", size=11, bold=True, color="FFFFFF")
-        fill_header = PatternFill(start_color=dark_emerald, end_color=dark_emerald, fill_type="solid")
-        
-        for col in range(1, 7):
-            cell = ws_data.cell(row=1, column=col)
-            cell.font = font_header
-            cell.fill = fill_header
-            cell.alignment = Alignment(horizontal="center")
-            
-        wb.save(DB_FILE)
-
-inisialisasi_database()
-
 # --- PENGATURAN HALAMAN WEB ---
 st.set_page_config(page_title="Aplikasi Keuangan Bersama", page_icon="💰", layout="centered")
+
+# Inisialisasi Koneksi ke Google Sheets via TOML Secrets
+try:
+    conn = st.connection("gsheets", type=GSheetsConnection)
+except Exception as e:
+    st.error("Gagal menyambungkan ke Google Sheets. Pastikan link di Secrets sudah benar.")
 
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
@@ -60,20 +32,25 @@ if not st.session_state.logged_in:
         
         if st.button("Masuk", type="primary"):
             if user_input and pass_input:
-                wb = openpyxl.load_workbook(DB_FILE)
-                ws = wb["Users"]
-                user_found = False
-                for row in range(2, ws.max_row + 1):
-                    if ws.cell(row=row, column=1).value == user_input and ws.cell(row=row, column=2).value == hash_password(pass_input):
-                        user_found = True
-                        break
-                if user_found:
-                    st.session_state.logged_in = True
-                    st.session_state.username = user_input
-                    st.success(f"Selamat datang kembali, {user_input.capitalize()}!")
-                    st.rerun()
-                else:
-                    st.error("Username atau Password salah!")
+                try:
+                    df_users = conn.read(worksheet="Users", ttl=0)
+                    user_found = False
+                    
+                    if not df_users.empty and "username" in df_users.columns:
+                        # Cari kecocokan data
+                        match = df_users[(df_users["username"] == user_input) & (df_users["password"] == hash_password(pass_input))]
+                        if not match.empty:
+                            user_found = True
+                    
+                    if user_found:
+                        st.session_state.logged_in = True
+                        st.session_state.username = user_input
+                        st.success(f"Selamat datang kembali, {user_input.capitalize()}!")
+                        st.rerun()
+                    else:
+                        st.error("Username atau Password salah!")
+                except Exception as e:
+                    st.error("Gagal membaca data akun di Google Sheets.")
             else:
                 st.warning("Semua kolom harus diisi!")
 
@@ -88,19 +65,24 @@ if not st.session_state.logged_in:
                 if new_pass != confirm_pass:
                     st.error("Konfirmasi password tidak cocok!")
                 else:
-                    wb = openpyxl.load_workbook(DB_FILE)
-                    ws = wb["Users"]
-                    username_exists = False
-                    for row in range(2, ws.max_row + 1):
-                        if ws.cell(row=row, column=1).value == new_user:
-                            username_exists = True
-                            break
-                    if username_exists:
-                        st.error("Username sudah terpakai!")
-                    else:
-                        ws.append([new_user, hash_password(new_pass)])
-                        wb.save(DB_FILE)
-                        st.success("Akun berhasil dibuat! Silakan Login.")
+                    try:
+                        df_users = conn.read(worksheet="Users", ttl=0)
+                        
+                        username_exists = False
+                        if not df_users.empty and "username" in df_users.columns:
+                            if new_user in df_users["username"].values:
+                                username_exists = True
+                        
+                        if username_exists:
+                            st.error("Username sudah terpakai! Silakan gunakan nama lain.")
+                        else:
+                            # Tambah user baru ke dataframe dan update Google Sheets
+                            new_row = pd.DataFrame([{"username": new_user, "password": hash_password(new_pass)}])
+                            df_updated = pd.concat([df_users, new_row], ignore_index=True)
+                            conn.update(worksheet="Users", data=df_updated)
+                            st.success("Akun berhasil didaftarkan di Google Sheets! Silakan Login.")
+                    except Exception as e:
+                        st.error("Gagal mendaftarkan akun ke server.")
             else:
                 st.warning("Semua kolom wajib diisi!")
 
@@ -113,11 +95,11 @@ else:
         st.rerun()
         
     st.title(f"💰 Dompet Digital: {st.session_state.username.capitalize()}")
-    st.write("Catat pengeluaran pribadi Anda di bawah ini.")
+    st.write("Catat pengeluaran pribadi Anda langsung ke database cloud.")
     st.markdown("---")
     
     # Form Input Data
-    nama_barang = st.text_input("Nama Barang / Kebutuhan", placeholder="Contoh: Nasi Goreng, Bensin")
+    nama_barang = st.text_input("Nama Barang / Kebutuhan", placeholder="Contoh: Beli Buku, Makan Siang")
     harga = st.number_input("Harga (Rp)", min_value=0, step=1000, value=0)
     
     if st.button("Simpan Pengeluaran", type="primary"):
@@ -134,65 +116,65 @@ else:
                           "Juli", "Agustus", "September", "Oktober", "November", "Desember"]
             bulan = bulan_indo[sekarang.month - 1]
             
-            wb = openpyxl.load_workbook(DB_FILE)
-            ws = wb["Pengeluaran"]
-            ws.append([st.session_state.username, hari, tanggal, bulan, nama_barang, harga])
-            ws.cell(row=ws.max_row, column=6).number_format = '#,##0'
-            wb.save(DB_FILE)
-            st.success(f"Berhasil disimpan: {nama_barang}")
-            st.rerun()
+            try:
+                # Ambil data pengeluaran yang sudah ada di Google Sheets
+                df_pengeluaran = conn.read(worksheet="Pengeluaran", ttl=0)
+                
+                # Masukkan data baru
+                new_data = pd.DataFrame([{
+                    "Username": st.session_state.username,
+                    "Hari": hari,
+                    "Tanggal": tanggal,
+                    "Bulan": bulan,
+                    "Nama Barang / Kebutuhan": nama_barang,
+                    "Harga (Rp)": harga
+                }])
+                
+                df_updated = pd.concat([df_pengeluaran, new_data], ignore_index=True)
+                # Kirim balik ke Google Sheets
+                conn.update(worksheet="Pengeluaran", data=df_updated)
+                
+                st.success(f"Berhasil disimpan ke Google Sheets: {nama_barang}")
+                st.rerun()
+            except Exception as e:
+                st.error("Gagal menyimpan data ke Google Sheets.")
 
     st.markdown("---")
-    
-    # --- PERBAIKAN FITUR: MANAGEMENT DATA & HAPUS DATA AMAN ---
-    st.subheader("📊 Riwayat & Kelola Pengeluaran")
+    st.subheader("📊 Riwayat & Kelola Pengeluaran Cloud")
     
     try:
-        # Membaca data menggunakan Pandas secara aman
-        df_all = pd.read_excel(DB_FILE, sheet_name="Pengeluaran")
+        df_all = conn.read(worksheet="Pengeluaran", ttl=0)
         
-        # Filter data milik user aktif berdasarkan indeks baris asli
-        df_all['index_asli'] = df_all.index
-        df_user = df_all[df_all["Username"] == st.session_state.username]
-        
-        if not df_user.empty:
-            st.write("Jika ada data yang salah input, klik tombol **Hapus** di samping kanan data:")
+        if not df_all.empty and "Username" in df_all.columns:
+            # Filter data milik user aktif beserta penanda indeks barisnya
+            df_all['index_asli'] = df_all.index
+            df_user = df_all[df_all["Username"] == st.session_state.username]
             
-            total_user = 0
-            for idx, row in df_user.iterrows():
-                index_excel_target = row['index_asli'] + 2  # Konversi indeks dataframe ke baris riil Excel
-                nama_b = row['Nama Barang / Kebutuhan']
-                tgl_b = row['Tanggal']
-                harga_b = row['Harga (Rp)']
-                total_user += harga_b
-                
-                col_text, col_btn = st.columns([5, 1])
-                with col_text:
-                    # Perbaikan string format tampilan rupiah tanpa kebocoran kode bintangan markdown
-                    st.write(f"📅 **{tgl_b}** | {nama_b} — Rp {harga_b:,.0f}".replace(",", "."))
-                with col_btn:
-                    if st.button("🗑️ Hapus", key=f"del_{index_excel_target}"):
-                        wb = openpyxl.load_workbook(DB_FILE)
-                        ws = wb["Pengeluaran"]
-                        ws.delete_rows(index_excel_target)
-                        wb.save(DB_FILE)
-                        st.success("Data berhasil dihapus!")
-                        st.rerun()
-                        
-            st.markdown("---")
-            st.metric(label="Total Pengeluaran Anda Saat Ini", value=f"Rp {total_user:,.0f}".replace(",", "."))
-            
-            # Bagian Eksport & Download Data Rapi
-            st.subheader("📂 Download Data Pribadi")
-            df_download = df_user.drop(columns=["Username", "index_asli"])
-            file_download_name = f"Pengeluaran_{st.session_state.username}.xlsx"
-            df_download.to_excel(file_download_name, index=False)
-            
-            with open(file_download_name, "rb") as file:
-                st.download_button(label="📥 Download Excel Pengeluaran Saya", data=file, file_name=file_download_name, mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-            if os.path.exists(file_download_name):
-                os.remove(file_download_name)
+            if not df_user.empty:
+                total_user = 0
+                for idx, row in df_user.iterrows():
+                    index_target = row['index_asli']
+                    nama_b = row['Nama Barang / Kebutuhan']
+                    tgl_b = row['Tanggal']
+                    harga_b = row['Harga (Rp)']
+                    total_user += harga_b
+                    
+                    col_text, col_btn = st.columns([5, 1])
+                    with col_text:
+                        st.write(f"📅 **{tgl_b}** | {nama_b} — Rp {harga_b:,.0f}".replace(",", "."))
+                    with col_btn:
+                        if st.button("🗑️ Hapus", key=f"del_{index_target}"):
+                            # Hapus data berdasarkan indeks baris, lalu perbarui Google Sheets
+                            df_all_updated = df_all.drop(index_target).drop(columns=['index_asli'])
+                            conn.update(worksheet="Pengeluaran", data=df_all_updated)
+                            st.success("Data berhasil dihapus dari Google Sheets!")
+                            st.rerun()
+                            
+                st.markdown("---")
+                st.metric(label="Total Pengeluaran Anda Saat Ini", value=f"Rp {total_user:,.0f}".replace(",", "."))
+            else:
+                st.info("Belum ada riwayat pengeluaran pada akun Anda.")
         else:
-            st.info("Belum ada riwayat pengeluaran pada akun Anda.")
+            st.info("Database pengeluaran di Google Sheets masih kosong.")
     except Exception as e:
-        st.error("Mengatur ulang koneksi ke database...")
+        st.error("Sedang menyinkronkan data dengan Google Sheets...")
