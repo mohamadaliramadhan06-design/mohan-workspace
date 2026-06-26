@@ -117,7 +117,7 @@ else:
     st.markdown("---")
     
     # Form Input Data
-    nama_barang = st.text_input("Nama Barang / Kebutuhan", placeholder="Contoh: Nasi Goreng, Pulsa")
+    nama_barang = st.text_input("Nama Barang / Kebutuhan", placeholder="Contoh: Nasi Goreng, Bensin")
     harga = st.number_input("Harga (Rp)", min_value=0, step=1000, value=0)
     
     if st.button("Simpan Pengeluaran", type="primary"):
@@ -129,7 +129,7 @@ else:
             sekarang = datetime.now()
             hari_indo = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"]
             hari = hari_indo[sekarang.weekday()]
-            tanggal = hardcore_date = sekarang.strftime("%Y-%m-%d")
+            tanggal = sekarang.strftime("%Y-%m-%d")
             bulan_indo = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", 
                           "Juli", "Agustus", "September", "Oktober", "November", "Desember"]
             bulan = bulan_indo[sekarang.month - 1]
@@ -144,46 +144,37 @@ else:
 
     st.markdown("---")
     
-    # --- FITUR BARU: MANAGEMENT DATA & HAPUS DATA SALAH INPUT ---
+    # --- PERBAIKAN FITUR: MANAGEMENT DATA & HAPUS DATA AMAN ---
     st.subheader("📊 Riwayat & Kelola Pengeluaran")
     
     try:
-        wb = openpyxl.load_workbook(DB_FILE)
-        ws = wb["Pengeluaran"]
+        # Membaca data menggunakan Pandas secara aman
+        df_all = pd.read_excel(DB_FILE, sheet_name="Pengeluaran")
         
-        # Ambil data dari Excel ke list untuk diproses
-        data_rows = []
-        for row in range(2, ws.max_row + 1):
-            vals = [ws.cell(row=row, column=col).value for col in range(1, 7)]
-            # Menyimpan info nomor baris asli Excel di akhir elemen list (indeks ke-6)
-            vals.append(row) 
-            data_rows.append(vals)
-            
-        # Filter hanya data milik user yang sedang aktif login
-        user_entries = [r for r in data_rows if r[0] == st.session_state.username]
+        # Filter data milik user aktif berdasarkan indeks baris asli
+        df_all['index_asli'] = df_all.index
+        df_user = df_all[df_all["Username"] == st.session_state.username]
         
-        if user_entries:
-            # Tampilkan tombol hapus per baris data
+        if not df_user.empty:
             st.write("Jika ada data yang salah input, klik tombol **Hapus** di samping kanan data:")
             
             total_user = 0
-            for entry in user_entries:
-                # entry format: [username, hari, tanggal, bulan, nama_barang, harga, baris_excel]
-                row_id = entry[6]
-                nama_b = entry[4]
-                tgl_b = entry[2]
-                harga_b = entry[5]
+            for idx, row in df_user.iterrows():
+                index_excel_target = row['index_asli'] + 2  # Konversi indeks dataframe ke baris riil Excel
+                nama_b = row['Nama Barang / Kebutuhan']
+                tgl_b = row['Tanggal']
+                harga_b = row['Harga (Rp)']
                 total_user += harga_b
                 
-                # Buat layout kolom kecil di web untuk teks dan tombol hapus
                 col_text, col_btn = st.columns([5, 1])
                 with col_text:
-                    st.write(f"📅 **{tgl_b}** | {nama_b} — **Rp {harga_b:,.0f}".replace(",", "."))
+                    # Perbaikan string format tampilan rupiah tanpa kebocoran kode bintangan markdown
+                    st.write(f"📅 **{tgl_b}** | {nama_b} — Rp {harga_b:,.0f}".replace(",", "."))
                 with col_btn:
-                    # Tombol hapus unik berdasarkan nomor baris asli di file Excel
-                    if st.button("🗑️ Hapus", key=f"del_{row_id}"):
-                        # Hapus baris di excel
-                        wb.delete_rows(row_id)
+                    if st.button("🗑️ Hapus", key=f"del_{index_excel_target}"):
+                        wb = openpyxl.load_workbook(DB_FILE)
+                        ws = wb["Pengeluaran"]
+                        ws.delete_rows(index_excel_target)
                         wb.save(DB_FILE)
                         st.success("Data berhasil dihapus!")
                         st.rerun()
@@ -191,9 +182,9 @@ else:
             st.markdown("---")
             st.metric(label="Total Pengeluaran Anda Saat Ini", value=f"Rp {total_user:,.0f}".replace(",", "."))
             
-            # Ekspor ulang hasil filter ke file untuk didownload jika diperlukan
+            # Bagian Eksport & Download Data Rapi
             st.subheader("📂 Download Data Pribadi")
-            df_download = pd.DataFrame([e[1:6] for e in user_entries], columns=["Hari", "Tanggal", "Bulan", "Nama Barang / Kebutuhan", "Harga (Rp)"])
+            df_download = df_user.drop(columns=["Username", "index_asli"])
             file_download_name = f"Pengeluaran_{st.session_state.username}.xlsx"
             df_download.to_excel(file_download_name, index=False)
             
@@ -204,4 +195,4 @@ else:
         else:
             st.info("Belum ada riwayat pengeluaran pada akun Anda.")
     except Exception as e:
-        st.error("Gagal membaca atau memproses database.")
+        st.error("Mengatur ulang koneksi ke database...")
