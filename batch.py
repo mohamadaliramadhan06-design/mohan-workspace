@@ -10,8 +10,7 @@ st.set_page_config(page_title="Harian Keuangan", page_icon="💰", layout="cente
 
 # =========================================================================
 # ⚠️ PENTING: Ganti teks di bawah ini dengan tautan Web App dari Apps Script Anda!
-# Contoh: "https://script.google.com/macros/s/XXXXX/exec"
-API_URL = "https://script.google.com/macros/s/AKfycbypT6phRMzXpRux-ieLG8FsMK6DJvKE9R4gKFBGHvT1x0iVa_akeMhAVSIwyoSZFOQQMA/exec"
+API_URL = "https://script.google.com/macros/s/AKfycbynIv_fv7E4lvAuVirI28ADe6uW8kRzUFr_f2xidjGg-77KIwZRdUd_xR8KKmEMFTlJSA/exec"
 # =========================================================================
 
 # Inisialisasi Koneksi Membaca (Read) via Streamlit
@@ -23,34 +22,20 @@ except Exception as e:
 # Fungsi Menyimpan Data via Google Apps Script
 def simpan_ke_gsheet(nama_tab, data_baris):
     if API_URL == "PASTE_URL_WEB_APP_ANDA_DISINI" or not API_URL:
-        st.error("Gagal mengirim data: API_URL Web App Apps Script belum dikonfigurasi di dalam kode Anda!")
+        st.error("Gagal mengirim data: API_URL Web App Apps Script belum dikonfigurasi!")
         return False
     try:
         payload = {
             "sheetName": nama_tab,
             "rowData": data_baris
         }
-        # Mengirimkan data dalam bentuk JSON POST ke Apps Script
         response = requests.post(API_URL, data=json.dumps(payload), headers={"Content-Type": "application/json"})
-        
         if response.status_code == 200:
-            try:
-                res_data = response.json()
-                if res_data.get("status") == "success":
-                    st.cache_data.clear() # Bersihkan cache agar data terbaru langsung tampil
-                    return True
-                else:
-                    st.error(f"Apps Script menolak penyimpanan. Detail: {res_data.get('message')}")
-            except Exception:
-                # Jika Apps Script sukses merespon tapi tidak mengirim JSON (biasanya karena salah setup deployment)
-                st.warning("Data dikirim, namun respon dari Apps Script tidak berformat JSON standar.")
-                st.cache_data.clear()
-                return True
-        else:
-            st.error(f"Gagal menyimpan! Web App Apps Script merespon dengan Status Code: {response.status_code}")
+            st.cache_data.clear()  # Bersihkan cache Streamlit agar data langsung terupdate
+            return True
         return False
     except Exception as e:
-        st.error(f"Gagal menghubungi API Web App Apps Script. Masalah Teknis: {e}")
+        st.error(f"Gagal menghubungi Apps Script: {e}")
         return False
 
 if "logged_in" not in st.session_state:
@@ -70,11 +55,13 @@ if not st.session_state.logged_in:
         if st.button("Masuk", type="primary"):
             if user_input and pass_input:
                 try:
+                    # Membaca data mentah worksheet Users
                     df_users = conn.read(worksheet="Users")
                     user_found = False
                     
                     if df_users is not None and not df_users.empty:
-                        df_users.columns = df_users.columns.str.strip().str.lower()
+                        # Menyamakan nama kolom menjadi case-insensitive secara aman
+                        df_users.columns = [str(col).strip().lower() for col in df_users.columns]
                         
                         if "username" in df_users.columns and "password" in df_users.columns:
                             df_users["username"] = df_users["username"].astype(str).str.strip().str.lower()
@@ -92,7 +79,7 @@ if not st.session_state.logged_in:
                     else:
                         st.error("Username atau Password salah!")
                 except Exception as e:
-                    st.error(f"Gagal membaca database 'Users'. Masalah Teknis: {e}")
+                    st.error(f"Gagal membaca database 'Users'. Solusi: Pastikan nama kolom di Google Sheets Anda adalah 'Username' dan 'Password' (diawali huruf kapital). Detail error: {e}")
             else:
                 st.warning("Semua kolom harus diisi!")
 
@@ -112,7 +99,7 @@ if not st.session_state.logged_in:
                     try:
                         try:
                             df_users = conn.read(worksheet="Users")
-                            df_users.columns = df_users.columns.str.strip().str.lower()
+                            df_users.columns = [str(col).strip().lower() for col in df_users.columns]
                             username_exists = new_user in df_users["username"].astype(str).values
                         except Exception:
                             username_exists = False
@@ -120,15 +107,13 @@ if not st.session_state.logged_in:
                         if username_exists:
                             st.error("Username sudah terpakai! Silakan gunakan nama lain.")
                         else:
-                            # Mengirim data pendaftaran akun baru ke tab 'Users'
                             if simpan_ke_gsheet("Users", [str(new_user), str(new_pass)]):
-                                st.success("Akun berhasil didaftarkan! Silakan kembali ke tab 'Login' di atas.")
+                                st.success("Akun berhasil didaftarkan! Silakan login melalui tab 'Login'.")
                                 st.balloons()
                             else:
-                                st.error("Sistem gagal menulis ke Google Sheets melalui Apps Script.")
-                                
+                                st.error("Gagal menyimpan ke Google Sheets. Periksa URL Apps Script Anda.")
                     except Exception as e:
-                        st.error(f"Terjadi kendala sistem pendaftaran: {e}")
+                        st.error(f"Terjadi kendala sistem: {e}")
             else:
                 st.warning("Semua kolom wajib diisi!")
 
@@ -176,14 +161,14 @@ else:
         df_all = conn.read(worksheet="Pengeluaran")
         
         if df_all is not None and not df_all.empty:
-            df_all.columns = df_all.columns.str.strip()
+            # Menormalisasi nama kolom tabel pengeluaran
+            df_all.columns = [str(col).strip() for col in df_all.columns]
             kolom_wajib = ["Username", "Hari", "Tanggal", "Bulan", "Nama Barang / Kebutuhan", "Harga (Rp)"]
             
             for k in kolom_wajib:
                 if k not in df_all.columns:
                     df_all[k] = ""
                     
-            df_all['index_asli'] = df_all.index
             df_all_lower_user = df_all["Username"].astype(str).str.strip().str.lower()
             df_user = df_all[df_all_lower_user == str(st.session_state.username).lower()]
             
