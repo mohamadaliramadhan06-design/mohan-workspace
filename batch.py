@@ -4,7 +4,7 @@ from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 import os
 from datetime import datetime
 
-EXCEL_FILE = "Keuangan_Alirama.xlsx"
+EXCEL_FILE = "Laporan_Bulanan.xlsx"
 
 def inisialisasi_excel():
     """Membuat file Excel beserta headernya jika belum ada"""
@@ -95,3 +95,18 @@ if st.button("Simpan ke Excel", type="primary"):
         
         # Tampilkan notifikasi sukses di web
         st.success(f"Berhasil menyimpan: {nama_barang} - Rp {harga:,}")
+
+st.markdown("---")
+st.subheader("📂 Download File Data Anda")
+
+# --- FITUR BARU: TOMBOL DOWNLOAD BIAR MUNCUL DI WEB ---
+if os.path.exists(EXCEL_FILE):
+    with open(EXCEL_FILE, "rb") as file:
+        btn = st.download_button(
+            label="📥 Download File Excel Keuangan",
+            data=file,
+            file_name="Aplikasi_Keuangan.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+else:
+    st.info("Belum ada data yang tersimpan. Silakan isi form di atas terlebih dahulu.")
