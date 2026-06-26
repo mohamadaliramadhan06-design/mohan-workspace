@@ -18,9 +18,11 @@ st.markdown(
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
     
     /* Mengubah Latar Belakang Aplikasi & Font Global */
-    .stApp {
+    html, body, .stApp {
         background-color: #f3f7fa;
         font-family: 'Poppins', sans-serif;
+        /* 💡 SOLUSI NO 1: Mengunci browser agar tidak reload / refresh otomatis saat di-scroll ke atas di HP */
+        overscroll-behavior-y: contain; 
     }
     
     /* 🎬 ANIMASI TRANSISI HALAMAN (FADE-IN EFFECT) */
@@ -372,22 +374,15 @@ else:
                 st.error("Gagal menyimpan ke Google Sheets.")
     st.markdown("</div>", unsafe_allow_html=True)
 
-    # =========================================================================
-    # 📥 FITUR BARU: SIMPAN / EXPORT KE EXCEL
-    # =========================================================================
+    # --- FITUR SIMPAN / EXPORT KE EXCEL ---
     if df_all is not None and not df_all.empty and not df_user.empty:
-        # Menghapus kolom pembantu internal Streamlit agar file Excel bersih
         df_excel = df_user.drop(columns=['baris_gsheet'], errors='ignore')
-        
-        # Mengubah susunan kolom agar lebih rapi saat dibuka di Excel
         df_excel = df_excel[["Tanggal", "Hari", "Bulan", "Nama Barang / Kebutuhan", "Harga (Rp)", "Jenis"]]
         
-        # Konversi dataframe ke bytes Excel di memori RAM menggunakan Openpyxl
         buffer = io.BytesIO()
         with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
             df_excel.to_excel(writer, index=False, sheet_name='Laporan Keuangan')
             
-        # Tampilkan Tombol Download Excel dengan style bawaan Streamlit
         st.download_button(
             label="📥 Simpan Laporan ke File Excel (.xlsx)",
             data=buffer.getvalue(),
