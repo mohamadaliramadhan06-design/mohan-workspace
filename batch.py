@@ -3,8 +3,9 @@ import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 import os
 from datetime import datetime
+import pandas as pd  # Library tambahan untuk menampilkan tabel
 
-EXCEL_FILE = "Laporan_Bulanan.xlsx"
+EXCEL_FILE = "Laporan_Uang_Ali.xlsx"
 
 def inisialisasi_excel():
     """Membuat file Excel beserta headernya jika belum ada"""
@@ -95,18 +96,43 @@ if st.button("Simpan ke Excel", type="primary"):
         
         # Tampilkan notifikasi sukses di web
         st.success(f"Berhasil menyimpan: {nama_barang} - Rp {harga:,}")
+        st.rerun()  # Merefresh halaman otomatis agar tabel langsung terupdate
+
+st.markdown("---")
+
+# --- FITUR BARU: MENAMPILKAN TABEL DATA DI WEB ---
+st.subheader("📊 Riwayat Pengeluaran Anda")
+
+if os.path.exists(EXCEL_FILE):
+    try:
+        # Membaca data dari Excel menggunakan pandas
+        df = pd.read_excel(EXCEL_FILE)
+        
+        if not df.empty:
+            # Mengubah format kolom Harga (Rp) agar tampil dengan pemisah ribuan di web
+            df_display = df.copy()
+            df_display["Harga (Rp)"] = df_display["Harga (Rp)"].apply(lambda x: f"Rp {x:,.0f}".replace(",", "."))
+            
+            # Menampilkan tabel interaktif di Streamlit
+            st.dataframe(df_display, use_container_width=True, hide_index=True)
+            
+            # Menampilkan Total Pengeluaran Saat ini di bawah tabel
+            total_harga = df["Harga (Rp)"].sum()
+            st.metric(label="Total Pengeluaran Keseluruhan", value=f"Rp {total_harga:,.0f}".replace(",", "."))
+        else:
+            st.info("Tabel masih kosong.")
+    except Exception as e:
+        st.error("Gagal memuat data tabel.")
 
 st.markdown("---")
 st.subheader("📂 Download File Data Anda")
 
-# --- FITUR BARU: TOMBOL DOWNLOAD BIAR MUNCUL DI WEB ---
+# Tombol Download
 if os.path.exists(EXCEL_FILE):
     with open(EXCEL_FILE, "rb") as file:
-        btn = st.download_button(
+        st.download_button(
             label="📥 Download File Excel Keuangan",
             data=file,
             file_name="Aplikasi_Keuangan.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
-else:
-    st.info("Belum ada data yang tersimpan. Silakan isi form di atas terlebih dahulu.")
