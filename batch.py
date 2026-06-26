@@ -19,7 +19,7 @@ try:
 except Exception as e:
     st.error(f"Gagal menyambungkan ke Google Sheets. Detail: {e}")
 
-# Fungsi Menyimpan Data via Google Apps Script (Sangat Stabil & Tanpa Error Izin)
+# Fungsi Menyimpan Data via Google Apps Script
 def simpan_ke_gsheet(nama_tab, data_baris):
     if API_URL == "PASTE_URL_WEB_APP_ANDA_DISINI" or not API_URL:
         st.error("Gagal mengirim data: URL Web App Apps Script belum dikonfigurasi di dalam kode!")
@@ -31,6 +31,8 @@ def simpan_ke_gsheet(nama_tab, data_baris):
         }
         response = requests.post(API_URL, data=json.dumps(payload), headers={"Content-Type": "application/json"})
         if response.status_code == 200 and response.json().get("status") == "success":
+            # Paksa hapus cache Streamlit agar data yang baru disimpan langsung terbaca saat refresh
+            st.cache_data.clear()
             return True
         else:
             st.error(f"Respon Apps Script Gagal: {response.text}")
@@ -56,8 +58,8 @@ if not st.session_state.logged_in:
         if st.button("Masuk", type="primary"):
             if user_input and pass_input:
                 try:
-                    # Membaca tabel Users
-                    df_users = conn.read(worksheet="Users", ttl=0)
+                    # PERBAIKAN: Parameter ttl=0 dihapus untuk menghindari HTTP Error 400
+                    df_users = conn.read(worksheet="Users")
                     user_found = False
                     
                     if df_users is not None and not df_users.empty:
@@ -79,16 +81,14 @@ if not st.session_state.logged_in:
                     else:
                         st.error("Username atau Password salah!")
                 except Exception as e:
-                    # Menampilkan pesan error asli dari Streamlit koneksi gsheets
                     st.error(f"Gagal membaca database 'Users'. Masalah Teknis: {e}")
-                    st.info("💡 Solusi: Periksa kembali apakah link spreadsheet di Secrets (.toml) sudah benar.")
             else:
                 st.warning("Semua kolom harus diisi!")
 
     with tab_reg:
         st.subheader("Buat Akun Baru")
         new_user = st.text_input("Buat Username", key="reg_user").strip().lower()
-        new_pass = st.text_input("Buat Password", type="password", key="reg_pass")
+        new_pass = text_input = st.text_input("Buat Password", type="password", key="reg_pass")
         confirm_pass = st.text_input("Konfirmasi Password", type="password", key="reg_pass_conf")
         
         if st.button("Daftar Sekarang"):
@@ -100,10 +100,10 @@ if not st.session_state.logged_in:
                 else:
                     try:
                         try:
-                            df_users = conn.read(worksheet="Users", ttl=0)
+                            df_users = conn.read(worksheet="Users")
                             df_users.columns = df_users.columns.str.strip().str.lower()
                             username_exists = new_user in df_users["username"].astype(str).values
-                        except Exception as e_read:
+                        except Exception:
                             username_exists = False
                         
                         if username_exists:
@@ -143,7 +143,7 @@ else:
             sekarang = datetime.now()
             hari_indo = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"]
             hari = hari_indo[sekarang.weekday()]
-            tanggal = Clinical = sekarang.strftime("%Y-%m-%d")
+            tanggal = sekarang.strftime("%Y-%m-%d")
             bulan_indo = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", 
                           "Juli", "Agustus", "September", "Oktober", "November", "Desember"]
             bulan = bulan_indo[sekarang.month - 1]
@@ -160,7 +160,7 @@ else:
     st.subheader("📊 Riwayat & Kelola Pengeluaran")
     
     try:
-        df_all = conn.read(worksheet="Pengeluaran", ttl=0)
+        df_all = conn.read(worksheet="Pengeluaran")
         
         if df_all is not None and not df_all.empty:
             df_all.columns = df_all.columns.str.strip()
