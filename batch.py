@@ -2,35 +2,38 @@ import streamlit as st
 from streamlit_gsheets import GSheetsConnection
 from datetime import datetime
 import pandas as pd
-import gspread
+import requests
+import json
 
 # --- PENGATURAN HALAMAN WEB ---
 st.set_page_config(page_title="Harian Keuangan", page_icon="💰", layout="centered")
 
-# Ambil URL Google Sheets langsung dari Secrets Streamlit Anda
-try:
-    spreadsheet_url = st.secrets["connections"]["gsheets"]["spreadsheet"]
-except Exception:
-    st.error("Gagal membaca link spreadsheet dari Secrets (.streamlit/secrets.toml)")
-    spreadsheet_url = ""
+# =========================================================================
+# PENTING: Ganti teks di bawah ini dengan URL Web App dari Google Apps Script Anda
+API_URL = "https://script.google.com/macros/s/AKfycbynIv_fv7E4lvAuVirI28ADe6uW8kRzUFr_f2xidjGg-77KIwZRdUd_xR8KKmEMFTlJSA/exec"
+# =========================================================================
 
-# Inisialisasi Koneksi untuk Membaca (Read-Only via Streamlit Connection)
+# Inisialisasi Koneksi Membaca (Read) via Streamlit
 try:
     conn = st.connection("gsheets", type=GSheetsConnection)
 except Exception as e:
-    st.error("Gagal menyambungkan ke Google Sheets via Streamlit Connection.")
+    st.error("Gagal menyambungkan ke Google Sheets.")
 
-# Fungsi Alternatif untuk MENULIS/MENYIMPAN Data Menggunakan gspread (Lebih Aman & Stabil)
-def append_to_gsheet(worksheet_name, row_data):
+# Fungsi Menyimpan Data via Google Apps Script (Sangat Stabil & Tanpa Error Izin)
+def simpan_ke_gsheet(nama_tab, data_baris):
+    if API_URL == "PASTE_URL_WEB_APP_ANDA_DISINI" or not API_URL:
+        st.error("Gagal mengirim data: URL Web App Apps Script belum dikonfigurasi di dalam kode!")
+        return False
     try:
-        # Menggunakan gspread publik dengan akses editor tanpa service account json khusus
-        gc = gspread.public_api()
-        sh = gc.open_by_url(spreadsheet_url)
-        worksheet = sh.worksheet(worksheet_name)
-        worksheet.append_row(row_data)
-        return True
+        payload = {
+            "sheetName": nama_tab,
+            "rowData": data_baris
+        }
+        response = requests.post(API_URL, data=json.dumps(payload), headers={"Content-Type": "application/json"})
+        if response.status_code == 200 and response.json().get("status") == "success":
+            return True
+        return False
     except Exception as e:
-        # Fallback jika public API gspread terhambat: Menggunakan library gsheet update konvensional
         return False
 
 if "logged_in" not in st.session_state:
@@ -90,7 +93,6 @@ if not st.session_state.logged_in:
                     st.error("Konfirmasi password tidak cocok!")
                 else:
                     try:
-                        # Pengecekan duplikasi username sebelum didaftarkan
                         try:
                             df_users = conn.read(worksheet="Users", ttl=0)
                             df_users.columns = df_users.columns.str.strip().str.lower()
@@ -101,22 +103,14 @@ if not st.session_state.logged_in:
                         if username_exists:
                             st.error("Username sudah terpakai! Silakan gunakan nama lain.")
                         else:
-                            # Tulis langsung baris baru [username, password] ke tab "Users"
-                            success = append_to_gsheet("Users", [str(new_user), str(new_pass)])
-                            
-                            if success:
+                            # Mengirim data langsung melalui Jembatan Google Apps Script
+                            if simpan_ke_gsheet("Users", [str(new_user), str(new_pass)]):
                                 st.success("Akun berhasil didaftarkan! Silakan klik tab 'Login' di atas.")
                             else:
-                                # Jika gspread public diblokir cloud, gunakan fallback write standar DataFrame
-                                df_users = conn.read(worksheet="Users", ttl=0)
-                                df_users.columns = df_users.columns.str.strip().str.lower()
-                                new_row = pd.DataFrame([{"username": str(new_user), "password": str(new_pass)}])
-                                df_updated = pd.concat([df_users, new_row], ignore_index=True)
-                                conn.update(worksheet="Users", data=df_updated)
-                                st.success("Akun berhasil didaftarkan! (via Fallback)")
+                                st.error("Gagal menyimpan ke Google Sheets via API. Periksa kembali URL Apps Script Anda.")
                                 
                     except Exception as e:
-                        st.error("Gagal menyimpan akun baru. Pastikan link di Secrets Anda sudah diset ke 'Siapa saja sebagai Editor'.")
+                        st.error("Terjadi kendala sistem pendaftaran.")
             else:
                 st.warning("Semua kolom wajib diisi!")
 
@@ -149,24 +143,14 @@ else:
                           "Juli", "Agustus", "September", "Oktober", "November", "Desember"]
             bulan = bulan_indo[sekarang.month - 1]
             
-            try:
-                # Simpan baris pengeluaran baru langsung ke Google Sheets tab "Pengeluaran"
-                row_pengeluaran = [str(st.session_state.username), str(hari), str(tanggal), str(bulan), str(nama_barang), int(harga)]
-                success = append_to_gsheet("Pengeluaran", row_pengeluaran)
-                
-                if success:
-                    st.success(f"Berhasil disimpan: {nama_barang}")
-                    st.rerun()
-                else:
-                    # Fallback write jika diperlukan
-                    df_p = conn.read(worksheet="Pengeluaran", ttl=0)
-                    new_p = pd.DataFrame([{"Username": str(st.session_state.username), "Hari": hari, "Tanggal": tanggal, "Bulan": bulan, "Nama Barang / Kebutuhan": nama_barang, "Harga (Rp)": harga}])
-                    df_updated = pd.concat([df_p, new_p], ignore_index=True)
-                    conn.update(worksheet="Pengeluaran", data=df_updated)
-                    st.success(f"Berhasil disimpan: {nama_barang} (via Fallback)")
-                    st.rerun()
-            except Exception as e:
-                st.error("Gagal menyimpan data pengeluaran ke Google Sheets.")
+            # Mengirim data pengeluaran melalui Jembatan Google Apps Script
+            data_pengeluaran = [str(st.session_state.username), str(hari), str(tanggal), str(bulan), str(nama_barang), int(harga)]
+            
+            if simpan_ke_gsheet("Pengeluaran", data_pengeluaran):
+                st.success(f"Berhasil disimpan: {nama_barang}")
+                st.rerun()
+            else:
+                st.error("Gagal menyimpan data pengeluaran ke cloud.")
 
     st.markdown("---")
     st.subheader("📊 Riwayat & Kelola Pengeluaran")
@@ -189,7 +173,6 @@ else:
             if not df_user.empty:
                 total_user = 0
                 for idx, row in df_user.iterrows():
-                    index_target = row['index_asli']
                     nama_b = str(row['Nama Barang / Kebutuhan'])
                     tgl_b = str(row['Tanggal'])
                     
@@ -200,21 +183,7 @@ else:
                         harga_b = 0
                         
                     total_user += harga_b
-                    
-                    col_text, col_btn = st.columns([5, 1])
-                    with col_text:
-                        st.write(f"📅 **{tgl_b}** | {nama_b} — Rp {harga_b:,.0f}".replace(",", "."))
-                    with col_btn:
-                        if st.button("🗑️ Hapus", key=f"del_{index_target}"):
-                            df_all_updated = df_all.drop(index_target)
-                            if 'index_asli' in df_all_updated.columns:
-                                df_all_updated = df_all_updated.drop(columns=['index_asli'])
-                            
-                            df_all_updated.columns = df_all_updated.columns.str.strip()
-                            df_all_updated = df_all_updated[["Username", "Hari", "Tanggal", "Bulan", "Nama Barang / Kebutuhan", "Harga (Rp)"]]
-                            conn.update(worksheet="Pengeluaran", data=df_all_updated)
-                            st.success("Data berhasil dihapus!")
-                            st.rerun()
+                    st.write(f"📅 **{tgl_b}** | {nama_b} — Rp {harga_b:,.0f}".replace(",", "."))
                             
                 st.markdown("---")
                 st.metric(label="Total Pengeluaran Anda Saat Ini", value=f"Rp {total_user:,.0f}".replace(",", "."))
@@ -223,4 +192,4 @@ else:
         else:
             st.info("Database pengeluaran di Google Sheets masih kosong.")
     except Exception as e:
-        st.info("Sedang menyelaraskan tabel awal...")
+        st.info("Memperbarui riwayat data...")
