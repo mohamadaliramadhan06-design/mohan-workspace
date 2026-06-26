@@ -17,12 +17,12 @@ st.markdown(
     /* Mengimpor Font Modern */
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
     
-    /* Mengubah Latar Belakang Aplikasi & Font Global */
-    html, body, .stApp {
+    /* 💡 PERBAIKAN CSS KUNCI: Mematikan pull-to-refresh secara total di HP */
+    html, body, .stApp, .main, [data-testid="stAppViewContainer"] {
         background-color: #f3f7fa;
         font-family: 'Poppins', sans-serif;
-        /* 💡 SOLUSI NO 1: Mengunci browser agar tidak reload / refresh otomatis saat di-scroll ke atas di HP */
-        overscroll-behavior-y: contain; 
+        overscroll-behavior-y: contain !important;
+        overscroll-behavior: contain !important;
     }
     
     /* 🎬 ANIMASI TRANSISI HALAMAN (FADE-IN EFFECT) */
@@ -81,11 +81,9 @@ st.markdown(
     /* Desain Form Input Kontainer */
     .form-container {
         background-color: #ffffff;
-        padding: 25px;
+        padding: 5px;
         border-radius: 12px;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.03);
         margin-bottom: 25px;
-        border: 1px solid #e2e8f0;
     }
     
     /* ⚡ TRANSISI INTERAKTIF PADA ELEMEN INPUT STREAMLIT */
@@ -172,69 +170,38 @@ if "logged_in" not in st.session_state:
 # --- HALAMAN BELUM LOGIN ---
 if not st.session_state.logged_in:
     st.markdown("<h2 style='text-align: center; margin-top: 30px;'>🔐 Akses Sistem Keuangan</h2>", unsafe_allow_html=True)
-    tab_login, tab_reg = st.tabs(["🔑 Login", "📝 Daftar Akun Baru"])
     
-    with tab_login:
-        st.subheader("Silakan Login")
+    # Membungkus halaman login ke dalam form agar ketikan tidak hilang saat tak sengaja reload
+    with st.form("form_autentikasi"):
+        st.subheader("Silakan Login / Masuk")
         user_input = st.text_input("Username", key="login_user").strip().lower()
         pass_input = st.text_input("Password", type="password", key="login_pass")
+        tombol_login = st.form_submit_button("Masuk Ke Aplikasi", type="primary")
         
-        if st.button("Masuk", type="primary"):
-            if user_input and pass_input:
-                df_users = baca_dari_gsheet("Users")
-                user_found = False
-                
-                if df_users is not None and not df_users.empty:
-                    df_users.columns = [str(col).strip().lower() for col in df_users.columns]
-                    if "username" in df_users.columns and "password" in df_users.columns:
-                        df_users["username"] = df_users["username"].astype(str).str.strip().str.lower()
-                        df_users["password"] = df_users["password"].astype(str).str.strip()
-                        
-                        match = df_users[(df_users["username"] == user_input) & (df_users["password"] == str(pass_input))]
-                        if not match.empty:
-                            user_found = True
-                
-                if user_found:
-                    st.session_state.logged_in = True
-                    st.session_state.username = user_input
-                    st.success(f"Selamat datang kembali, {user_input.capitalize()}!")
-                    st.rerun()
-                else:
-                    st.error("Username atau Password salah!")
-            else:
-                st.warning("Semua kolom harus diisi!")
-
-    with tab_reg:
-        st.subheader("Buat Akun Baru")
-        new_user = st.text_input("Buat Username", key="reg_user").strip().lower()
-        new_pass = st.text_input("Buat Password", type="password", key="reg_pass")
-        confirm_pass = st.text_input("Konfirmasi Password", type="password", key="reg_pass_conf")
-        
-        if st.button("Daftar Sekarang"):
-            if new_user and new_pass and confirm_pass:
-                if " " in new_user:
-                    st.error("Username tidak boleh mengandung spasi!")
-                elif new_pass != confirm_pass:
-                    st.error("Konfirmasi password tidak cocok!")
-                else:
-                    df_users = baca_dari_gsheet("Users")
-                    username_exists = False
+    if tombol_login:
+        if user_input and pass_input:
+            df_users = baca_dari_gsheet("Users")
+            user_found = False
+            
+            if df_users is not None and not df_users.empty:
+                df_users.columns = [str(col).strip().lower() for col in df_users.columns]
+                if "username" in df_users.columns and "password" in df_users.columns:
+                    df_users["username"] = df_users["username"].astype(str).str.strip().str.lower()
+                    df_users["password"] = df_users["password"].astype(str).str.strip()
                     
-                    if df_users is not None and not df_users.empty:
-                        df_users.columns = [str(col).strip().lower() for col in df_users.columns]
-                        if "username" in df_users.columns:
-                            username_exists = new_user in df_users["username"].astype(str).values
-                    
-                    if username_exists:
-                        st.error("Username sudah terpakai! Silakan gunakan nama lain.")
-                    else:
-                        if simpan_ke_gsheet("Users", [str(new_user), str(new_pass)]):
-                            st.success("Akun berhasil didaftarkan! Silakan login melalui tab 'Login'.")
-                            st.balloons()
-                        else:
-                            st.error("Gagal menyimpan ke Google Sheets.")
+                    match = df_users[(df_users["username"] == user_input) & (df_users["password"] == str(pass_input))]
+                    if not match.empty:
+                        user_found = True
+            
+            if user_found:
+                st.session_state.logged_in = True
+                st.session_state.username = user_input
+                st.success(f"Selamat datang kembali, {user_input.capitalize()}!")
+                st.rerun()
             else:
-                st.warning("Semua kolom wajib diisi!")
+                st.error("Username atau Password salah!")
+        else:
+            st.warning("Semua kolom harus diisi!")
 
 # --- HALAMAN SETELAH LOGIN ---
 else:
@@ -248,7 +215,6 @@ else:
         df_all.columns = [str(col).strip() for col in df_all.columns]
         df_all['baris_gsheet'] = df_all.index + 2
         
-        # Pengaman pembacaan kolom agar data lama tidak error
         kolom_wajib = ["Username", "Hari", "Tanggal", "Bulan", "Nama Barang / Kebutuhan", "Harga (Rp)"]
         for k in kolom_wajib:
             if k not in df_all.columns:
@@ -268,7 +234,6 @@ else:
                 except:
                     harga_b = 0
                 
-                # Cek jenis transaksi
                 jenis_tx = str(row['Jenis']).strip()
                 if jenis_tx == "Pemasukan":
                     total_pemasukan += harga_b
@@ -332,23 +297,28 @@ else:
         
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # --- FORM INPUT TRANSAKSI BARU ---
+    # --- 💡 FORM INPUT TRANSAKSI BARU (DIBUNGKUS ST.FORM) ---
     st.markdown("<div class='form-container'>", unsafe_allow_html=True)
-    st.subheader("📝 Tambah Catatan Baru")
     
-    jenis_transaksi = st.radio("Jenis Transaksi", ["📉 Pengeluaran", "📈 Pemasukan"], horizontal=True)
-    jenis_clean = "Pemasukan" if "Pemasukan" in jenis_transaksi else "Pengeluaran"
-    
-    col_f1, col_f2 = st.columns(2)
-    with col_f1:
-        tanggal_pilihan = st.date_input("Pilih Tanggal Transaksi", value=datetime.now().date())
-    with col_f2:
-        harga = st.number_input("Harga / Nominal (Rp)", min_value=0, step=1000, value=0)
+    with st.form("input_transaksi_baru"):
+        st.subheader("📝 Tambah Catatan Baru")
         
-    nama_barang = st.text_input("Nama Barang / Kebutuhan / Sumber Dana", placeholder="Contoh: Bensin, Makan Siang, Uang Saku")
-    
-    st.markdown("<br>", unsafe_allow_html=True)
-    if st.button("Simpan Transaksi", type="primary"):
+        jenis_transaksi = st.radio("Jenis Transaksi", ["📉 Pengeluaran", "📈 Pemasukan"], horizontal=True)
+        
+        col_f1, col_f2 = st.columns(2)
+        with col_f1:
+            tanggal_pilihan = st.date_input("Pilih Tanggal Transaksi", value=datetime.now().date())
+        with col_f2:
+            harga = st.number_input("Harga / Nominal (Rp)", min_value=0, step=1000, value=0)
+            
+        nama_barang = st.text_input("Nama Barang / Kebutuhan / Sumber Dana", placeholder="Contoh: Bensin, Makan Siang, Uang Saku")
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        tombol_simpan = st.form_submit_button("Simpan Transaksi", type="primary")
+        
+    # Proses logika setelah tombol di dalam form ditekan
+    if tombol_simpan:
+        jenis_clean = "Pemasukan" if "Pemasukan" in jenis_transaksi else "Pengeluaran"
         if nama_barang == "":
             st.error("Keterangan transaksi tidak boleh kosong!")
         elif harga <= 0:
@@ -356,7 +326,6 @@ else:
         elif jenis_clean == "Pengeluaran" and harga > saldo_sekarang:
             st.error(f"❌ Saldo tidak mencukupi! Sisa saldo Anda adalah {saldo_format}")
         else:
-            # Hitung hari dan bulan otomatis dalam bahasa Indonesia
             hari_indo = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"]
             hari = hari_indo[tanggal_pilihan.weekday()]
             tanggal_str = tanggal_pilihan.strftime("%Y-%m-%d")
@@ -395,7 +364,6 @@ else:
     st.markdown("<h3>📊 Riwayat & Kelola Pengeluaran</h3>", unsafe_allow_html=True)
     
     if df_all is not None and not df_all.empty and not df_user.empty:
-        # Menampilkan data mulai dari yang paling baru dimasukkan (di-reverse)
         for idx, row in df_user.iloc[::-1].iterrows():
             nama_b = str(row['Nama Barang / Kebutuhan'])
             tgl_b = str(row['Tanggal'])
@@ -413,7 +381,6 @@ else:
             label_badge = "MASUK" if j_tx == "Pemasukan" else "KELUAR"
             tanda_minus = " " if j_tx == "Pemasukan" else "-"
             
-            # Format harga ke IDR rupiah (Titik sebagai ribuan)
             harga_format = f"{tanda_minus}Rp {harga_b:,.0f}".replace(",", ".")
             
             col_box, col_action = st.columns([6, 1])
