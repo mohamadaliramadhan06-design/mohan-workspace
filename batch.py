@@ -8,19 +8,62 @@ import json
 st.set_page_config(page_title="Harian Keuangan", page_icon="💰", layout="centered")
 
 # =========================================================================
-# 🎨 KUSTOMISASI LATAR BELAKANG WARNA SOLID (BIRU ELEGAN)
+# 🎨 KUSTOMISASI DESAIN ANTARMUKA MODERN (CUSTOM CSS)
 # =========================================================================
 st.markdown(
     """
     <style>
+    /* Mengubah Latar Belakang Aplikasi */
     .stApp {
-        background-color: #e6f0fa;
+        background-color: #f3f7fa;
     }
+    
+    /* Mengubah Desain Sidebar */
     [data-testid="stSidebar"] {
-        background-color: #f0f4f8;
+        background-color: #ffffff;
+        border-right: 1px solid #e2e8f0;
     }
+    
+    /* Desain Kartu Ringkasan (Card Dashboard) */
+    .metric-card {
+        background-color: #ffffff;
+        padding: 20px;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+        border-left: 5px solid #3b82f6;
+        margin-bottom: 15px;
+    }
+    .metric-card.pemasukan { border-left-color: #10b981; }
+    .metric-card.pengeluaran { border-left-color: #ef4444; }
+    
+    .metric-title {
+        font-size: 14px;
+        color: #64748b;
+        font-weight: 600;
+        margin-bottom: 5px;
+    }
+    .metric-value {
+        font-size: 24px;
+        color: #1e293b;
+        font-weight: 700;
+    }
+    
+    /* Desain Form Input Kontainer */
+    .form-container {
+        background-color: #ffffff;
+        padding: 25px;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        margin-bottom: 25px;
+        border: 1px solid #e2e8f0;
+    }
+    
+    /* Tombol Utama */
     div.stButton > button:first-child {
         border-radius: 8px;
+        font-weight: 600;
+        width: 100%;
+        padding: 10px;
     }
     </style>
     """,
@@ -76,7 +119,7 @@ if "logged_in" not in st.session_state:
 
 # --- HALAMAN BELUM LOGIN ---
 if not st.session_state.logged_in:
-    st.title("🔐 Akses Sistem Keuangan")
+    st.markdown("<h2 style='text-align: center; margin-top: 30px;'>🔐 Akses Sistem Keuangan</h2>", unsafe_allow_html=True)
     tab_login, tab_reg = st.tabs(["🔑 Login", "📝 Daftar Akun Baru"])
     
     with tab_login:
@@ -183,107 +226,26 @@ else:
     # Hitung sisa saldo murni dari matematika cloud
     saldo_sekarang = total_pemasukan - total_pengeluaran
 
-    # 2. SIDEBAR
-    st.sidebar.title(f"👤 Akun: {st.session_state.username.capitalize()}")
-    st.sidebar.markdown("---")
+    # 2. SIDEBAR DESAIN
+    st.sidebar.markdown(f"<h3 style='text-align: center; color: #1e293b;'>👤 Akun: {st.session_state.username.capitalize()}</h3>", unsafe_allow_html=True)
+    st.sidebar.markdown("<br>", unsafe_allow_html=True)
     
-    # Tampilkan info ringkas saldo di sidebar agar sinkron dengan tengah
-    st.sidebar.metric(label="💰 Sisa Saldo Anda", value=f"Rp {saldo_sekarang:,.0f}".replace(",", "."))
+    # Tampilkan info ringkas saldo berbentuk Box Elegan di Sidebar
+    st.sidebar.markdown(
+        f"""
+        <div class='metric-card'>
+            <div class='metric-title'>💰 SISA SALDO ANDA</div>
+            <div class='metric-value'>Rp {saldo_sekarang:,.0f}</div>
+        </div>
+        """.replace(",", "."), 
+        unsafe_allow_html=True
+    )
     
-    st.sidebar.markdown("---")
+    st.sidebar.markdown("<br><br>", unsafe_allow_html=True)
     if st.sidebar.button("🚪 Logout/Keluar Akun"):
         st.session_state.logged_in = False
         st.session_state.username = ""
         st.rerun()
         
     # 3. HALAMAN UTAMA
-    st.title(f"💰 Harian Keuangan: {st.session_state.username.capitalize()}")
-    st.write("Catat keuangan pribadi Anda langsung ke cloud.")
-    st.markdown("---")
-    
-    # Dashboard Utama yang Selalu Sinkron dan Akurat
-    col_m1, col_m2 = st.columns(2)
-    with col_m1:
-        st.metric(label="📈 Total Uang Masuk (Pemasukan)", value=f"Rp {total_pemasukan:,.0f}".replace(",", "."))
-    with col_m2:
-        st.metric(label="📉 Total Uang Keluar (Pengeluaran)", value=f"Rp {total_pengeluaran:,.0f}".replace(",", "."))
-        
-    st.markdown("---")
-    
-    # --- FORM INPUT TRANSAKSI BARU ---
-    st.subheader("📝 Tambah Catatan Baru")
-    
-    jenis_transaksi = st.radio("Jenis Transaksi", ["📉 Pengeluaran", "📈 Pemasukan"], horizontal=True)
-    jenis_clean = "Pemasukan" if "Pemasukan" in jenis_transaksi else "Pengeluaran"
-    
-    # Definisi alternatif jika ada bagian kode lama di bawah yang mencari variabel 'jenis'
-    jenis = jenis_clean
-    
-    tanggal_pilihan = st.date_input("Pilih Tanggal Transaksi", value=datetime.now().date())
-    
-    if jenis_clean == "Pemasukan":
-        nama_barang = st.text_input("Sumber Pemasukan / Dana", placeholder="Contoh: Gaji Bulanan, Uang Saku, Pembagian Hasil")
-    else:
-        nama_barang = st.text_input("Nama Barang / Kebutuhan", placeholder="Contoh: Bensin, Makan Siang")
-        
-    harga = st.number_input("Nominal / Harga (Rp)", min_value=0, step=1000, value=0)
-    
-    if st.button("Simpan Transaksi", type="primary"):
-        if nama_barang == "":
-            st.error("Kolom keterangan/nama barang tidak boleh kosong!")
-        elif harga <= 0:
-            st.error("Nominal harus lebih dari 0!")
-        elif jenis_clean == "Pengeluaran" and harga > saldo_sekarang:
-            st.error(f"❌ Saldo tidak cukup! Sisa saldo Anda saat ini adalah Rp {saldo_sekarang:,.0f}".replace(",", "."))
-        else:
-            hari_indo = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"]
-            hari = hari_indo[tanggal_pilihan.weekday()]
-            tanggal_str = tanggal_pilihan.strftime("%Y-%m-%d")
-            
-            bulan_indo = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", 
-                          "Juli", "Agustus", "September", "Oktober", "November", "Desember"]
-            bulan = bulan_indo[tanggal_pilihan.month - 1]
-            
-            data_transaksi = [str(st.session_state.username), str(hari), str(tanggal_str), str(bulan), str(nama_barang), int(harga), str(jenis_clean)]
-            
-            if simpan_ke_gsheet("Pengeluaran", data_transaksi):
-                st.success(f"Berhasil disimpan sebagai {jenis_clean}: {nama_barang}")
-                st.rerun()
-            else:
-                st.error("Gagal menyimpan data ke cloud.")
-
-    # --- RIWAYAT & DAFTAR DATA ---
-    st.markdown("---")
-    st.subheader("📊 Riwayat & Kelola Transaksi")
-    
-    if df_all is not None and not df_all.empty and not df_user.empty:
-        for idx, row in df_user.iterrows():
-            nama_b = str(row['Nama Barang / Kebutuhan'])
-            tgl_b = str(row['Tanggal'])
-            baris_target = row['baris_gsheet']
-            j_tx = str(row['Jenis'])
-            
-            try:
-                val_harga = str(row['Harga (Rp)']).split('.')[0].split(',')[0]
-                harga_b = int(''.join(filter(str.isdigit, val_harga)))
-            except:
-                harga_b = 0
-                
-            simbol = "🟢 [Masuk]" if j_tx == "Pemasukan" else "🔴 [Keluar]"
-                
-            col_info, col_del = st.columns([5, 1])
-            with col_info:
-                st.write(f"📅 **{tgl_b}** | {simbol} {nama_b} — Rp {harga_b:,.0f}".replace(",", "."))
-            with col_del:
-                if st.button("🗑️ Hapus", key=f"del_{baris_target}"):
-                    if hapus_dari_gsheet("Pengeluaran", baris_target):
-                        st.success("Terhapus!")
-                        st.rerun()
-                    else:
-                        st.error("Gagal!")
-        st.markdown("---")
-    else:
-        if df_all is None or df_all.empty:
-            st.info("Database transaksi di Google Sheets masih kosong.")
-        else:
-            st.info("Belum ada riwayat transaksi pada akun Anda.")
+    st.markdown(f"<h2>💰 Harian Keuangan: {st.session_state.
