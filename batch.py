@@ -9,8 +9,9 @@ import json
 st.set_page_config(page_title="Harian Keuangan", page_icon="💰", layout="centered")
 
 # =========================================================================
-# PENTING: Pastikan Anda sudah mengganti teks ini dengan URL Web App dari Apps Script Anda!
-API_URL = "https://script.google.com/macros/s/AKfycbynIv_fv7E4lvAuVirI28ADe6uW8kRzUFr_f2xidjGg-77KIwZRdUd_xR8KKmEMFTlJSA/exec"
+# ⚠️ PENTING: Ganti teks di bawah ini dengan tautan Web App dari Apps Script Anda!
+# Contoh: "https://script.google.com/macros/s/XXXXX/exec"
+API_URL = "https://script.google.com/macros/s/AKfycbypT6phRMzXpRux-ieLG8FsMK6DJvKE9R4gKFBGHvT1x0iVa_akeMhAVSIwyoSZFOQQMA/exec"
 # =========================================================================
 
 # Inisialisasi Koneksi Membaca (Read) via Streamlit
@@ -22,23 +23,34 @@ except Exception as e:
 # Fungsi Menyimpan Data via Google Apps Script
 def simpan_ke_gsheet(nama_tab, data_baris):
     if API_URL == "PASTE_URL_WEB_APP_ANDA_DISINI" or not API_URL:
-        st.error("Gagal mengirim data: URL Web App Apps Script belum dikonfigurasi di dalam kode!")
+        st.error("Gagal mengirim data: API_URL Web App Apps Script belum dikonfigurasi di dalam kode Anda!")
         return False
     try:
         payload = {
             "sheetName": nama_tab,
             "rowData": data_baris
         }
+        # Mengirimkan data dalam bentuk JSON POST ke Apps Script
         response = requests.post(API_URL, data=json.dumps(payload), headers={"Content-Type": "application/json"})
-        if response.status_code == 200 and response.json().get("status") == "success":
-            # Paksa hapus cache Streamlit agar data yang baru disimpan langsung terbaca saat refresh
-            st.cache_data.clear()
-            return True
+        
+        if response.status_code == 200:
+            try:
+                res_data = response.json()
+                if res_data.get("status") == "success":
+                    st.cache_data.clear() # Bersihkan cache agar data terbaru langsung tampil
+                    return True
+                else:
+                    st.error(f"Apps Script menolak penyimpanan. Detail: {res_data.get('message')}")
+            except Exception:
+                # Jika Apps Script sukses merespon tapi tidak mengirim JSON (biasanya karena salah setup deployment)
+                st.warning("Data dikirim, namun respon dari Apps Script tidak berformat JSON standar.")
+                st.cache_data.clear()
+                return True
         else:
-            st.error(f"Respon Apps Script Gagal: {response.text}")
+            st.error(f"Gagal menyimpan! Web App Apps Script merespon dengan Status Code: {response.status_code}")
         return False
     except Exception as e:
-        st.error(f"Gagal menghubungi API Web App. Detail: {e}")
+        st.error(f"Gagal menghubungi API Web App Apps Script. Masalah Teknis: {e}")
         return False
 
 if "logged_in" not in st.session_state:
@@ -58,7 +70,6 @@ if not st.session_state.logged_in:
         if st.button("Masuk", type="primary"):
             if user_input and pass_input:
                 try:
-                    # PERBAIKAN: Parameter ttl=0 dihapus untuk menghindari HTTP Error 400
                     df_users = conn.read(worksheet="Users")
                     user_found = False
                     
@@ -88,7 +99,7 @@ if not st.session_state.logged_in:
     with tab_reg:
         st.subheader("Buat Akun Baru")
         new_user = st.text_input("Buat Username", key="reg_user").strip().lower()
-        new_pass = text_input = st.text_input("Buat Password", type="password", key="reg_pass")
+        new_pass = st.text_input("Buat Password", type="password", key="reg_pass")
         confirm_pass = st.text_input("Konfirmasi Password", type="password", key="reg_pass_conf")
         
         if st.button("Daftar Sekarang"):
@@ -109,10 +120,12 @@ if not st.session_state.logged_in:
                         if username_exists:
                             st.error("Username sudah terpakai! Silakan gunakan nama lain.")
                         else:
+                            # Mengirim data pendaftaran akun baru ke tab 'Users'
                             if simpan_ke_gsheet("Users", [str(new_user), str(new_pass)]):
-                                st.success("Akun berhasil didaftarkan! Silakan klik tab 'Login' di atas.")
+                                st.success("Akun berhasil didaftarkan! Silakan kembali ke tab 'Login' di atas.")
+                                st.balloons()
                             else:
-                                st.error("Gagal menyimpan akun baru ke Google Sheets.")
+                                st.error("Sistem gagal menulis ke Google Sheets melalui Apps Script.")
                                 
                     except Exception as e:
                         st.error(f"Terjadi kendala sistem pendaftaran: {e}")
