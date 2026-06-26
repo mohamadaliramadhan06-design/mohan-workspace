@@ -6,4 +6,4 @@ numpy
 Pillow
 pytz
 openpyxl
-gspread
+requests
