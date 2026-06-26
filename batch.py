@@ -9,7 +9,7 @@ import json
 st.set_page_config(page_title="Harian Keuangan", page_icon="💰", layout="centered")
 
 # =========================================================================
-# PENTING: Pastikan URL Web App dari Google Apps Script Anda sudah benar di bawah ini
+# PENTING: Pastikan Anda sudah mengganti teks ini dengan URL Web App dari Apps Script Anda!
 API_URL = "https://script.google.com/macros/s/AKfycbynIv_fv7E4lvAuVirI28ADe6uW8kRzUFr_f2xidjGg-77KIwZRdUd_xR8KKmEMFTlJSA/exec"
 # =========================================================================
 
@@ -17,7 +17,7 @@ API_URL = "https://script.google.com/macros/s/AKfycbynIv_fv7E4lvAuVirI28ADe6uW8k
 try:
     conn = st.connection("gsheets", type=GSheetsConnection)
 except Exception as e:
-    st.error("Gagal menyambungkan ke Google Sheets.")
+    st.error(f"Gagal menyambungkan ke Google Sheets. Detail: {e}")
 
 # Fungsi Menyimpan Data via Google Apps Script (Sangat Stabil & Tanpa Error Izin)
 def simpan_ke_gsheet(nama_tab, data_baris):
@@ -32,8 +32,11 @@ def simpan_ke_gsheet(nama_tab, data_baris):
         response = requests.post(API_URL, data=json.dumps(payload), headers={"Content-Type": "application/json"})
         if response.status_code == 200 and response.json().get("status") == "success":
             return True
+        else:
+            st.error(f"Respon Apps Script Gagal: {response.text}")
         return False
     except Exception as e:
+        st.error(f"Gagal menghubungi API Web App. Detail: {e}")
         return False
 
 if "logged_in" not in st.session_state:
@@ -53,7 +56,7 @@ if not st.session_state.logged_in:
         if st.button("Masuk", type="primary"):
             if user_input and pass_input:
                 try:
-                    # UPDATE: Ditambahkan ttl=0 untuk bypass cache agar akun baru langsung terbaca
+                    # Membaca tabel Users
                     df_users = conn.read(worksheet="Users", ttl=0)
                     user_found = False
                     
@@ -76,7 +79,9 @@ if not st.session_state.logged_in:
                     else:
                         st.error("Username atau Password salah!")
                 except Exception as e:
-                    st.error("Gagal membaca database akun. Pastikan nama tab adalah 'Users'.")
+                    # Menampilkan pesan error asli dari Streamlit koneksi gsheets
+                    st.error(f"Gagal membaca database 'Users'. Masalah Teknis: {e}")
+                    st.info("💡 Solusi: Periksa kembali apakah link spreadsheet di Secrets (.toml) sudah benar.")
             else:
                 st.warning("Semua kolom harus diisi!")
 
@@ -98,20 +103,19 @@ if not st.session_state.logged_in:
                             df_users = conn.read(worksheet="Users", ttl=0)
                             df_users.columns = df_users.columns.str.strip().str.lower()
                             username_exists = new_user in df_users["username"].astype(str).values
-                        except:
+                        except Exception as e_read:
                             username_exists = False
                         
                         if username_exists:
                             st.error("Username sudah terpakai! Silakan gunakan nama lain.")
                         else:
-                            # Mengirim data langsung melalui Jembatan Google Apps Script
                             if simpan_ke_gsheet("Users", [str(new_user), str(new_pass)]):
                                 st.success("Akun berhasil didaftarkan! Silakan klik tab 'Login' di atas.")
                             else:
-                                st.error("Gagal menyimpan ke Google Sheets via API. Periksa kembali URL Apps Script Anda.")
+                                st.error("Gagal menyimpan akun baru ke Google Sheets.")
                                 
                     except Exception as e:
-                        st.error("Terjadi kendala sistem pendaftaran.")
+                        st.error(f"Terjadi kendala sistem pendaftaran: {e}")
             else:
                 st.warning("Semua kolom wajib diisi!")
 
@@ -139,12 +143,11 @@ else:
             sekarang = datetime.now()
             hari_indo = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"]
             hari = hari_indo[sekarang.weekday()]
-            tanggal = sekarang.strftime("%Y-%m-%d")
+            tanggal = Clinical = sekarang.strftime("%Y-%m-%d")
             bulan_indo = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", 
                           "Juli", "Agustus", "September", "Oktober", "November", "Desember"]
             bulan = bulan_indo[sekarang.month - 1]
             
-            # Mengirim data pengeluaran melalui Jembatan Google Apps Script
             data_pengeluaran = [str(st.session_state.username), str(hari), str(tanggal), str(bulan), str(nama_barang), int(harga)]
             
             if simpan_ke_gsheet("Pengeluaran", data_pengeluaran):
@@ -193,4 +196,4 @@ else:
         else:
             st.info("Database pengeluaran di Google Sheets masih kosong.")
     except Exception as e:
-        st.info("Memperbarui riwayat data...")
+        st.error(f"Gagal memuat riwayat pengeluaran: {e}")
