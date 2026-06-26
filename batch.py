@@ -10,45 +10,53 @@ st.set_page_config(page_title="Harian Keuangan", page_icon="💰", layout="cente
 # =========================================================================
 # ⚠️ ISI KEDUA KONFIGURASI DI BAWAH INI DENGAN BENAR
 # =========================================================================
-# 1. Masukkan SPREADSHEET ID Anda (Ambil dari baris URL Google Sheets Anda)
-# Contoh URL: https://docs.google.com/spreadsheets/d/1A2B3C4D5E6Fxxxxxxxxx/edit
-# Ambil bagian kode acak di antara '/d/' dan '/edit'
 SPREADSHEET_ID = "19WepkG5jBNasCwIqH3ii4Yg1Cskyf_zB41M7G_MAlo0"
-
-# 2. Tautan Web App dari Apps Script Anda untuk menyimpan data
 API_URL = "https://script.google.com/macros/s/AKfycbynIv_fv7E4lvAuVirI28ADe6uW8kRzUFr_f2xidjGg-77KIwZRdUd_xR8KKmEMFTlJSA/exec"
 # =========================================================================
 
-# Fungsi Pintar untuk Membaca Google Sheets Menggunakan Pandas (Bebas Error 400)
+# Fungsi untuk Membaca Google Sheets
 def baca_dari_gsheet(nama_tab):
     if SPREADSHEET_ID == "PASTE_ID_SPREADSHEET_ANDA_DISINI":
         st.error("SPREADSHEET_ID belum diisi di dalam kode!")
         return None
     try:
-        # Menembak langsung ke fitur export CSV Google Sheets berdasarkan nama tab (sheet)
         url = f"https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}/gviz/tq?tqx=out:csv&sheet={nama_tab}"
         df = pd.read_csv(url)
         return df
     except Exception as e:
-        st.error(f"Gagal membaca tab '{nama_tab}'. Pastikan SPREADSHEET_ID benar. Detail: {e}")
+        st.error(f"Gagal membaca tab '{nama_tab}'. Detail: {e}")
         return None
 
 # Fungsi Menyimpan Data via Google Apps Script
 def simpan_ke_gsheet(nama_tab, data_baris):
-    if API_URL == "PASTE_URL_WEB_APP_ANDA_DISINI" or not API_URL:
-        st.error("Gagal mengirim data: API_URL Web App Apps Script belum dikonfigurasi!")
+    if API_URL == "PASTE_URL_WEB_APP_BARU_ANDA_DISINI" or not API_URL:
+        st.error("Gagal mengirim data: API_URL belum dikonfigurasi!")
         return False
     try:
         payload = {
             "sheetName": nama_tab,
+            "action": "INSERT",
             "rowData": data_baris
         }
         response = requests.post(API_URL, data=json.dumps(payload), headers={"Content-Type": "application/json"})
-        if response.status_code == 200:
-            return True
+        return response.status_code == 200
+    except Exception:
         return False
-    except Exception as e:
-        st.error(f"Gagal menghubungi Apps Script: {e}")
+
+# FITUR BARU: Fungsi Menghapus Data Berdasarkan Nomor Baris Asli di Google Sheets
+def hapus_dari_gsheet(nama_tab, nomor_baris_gsheet):
+    if API_URL == "PASTE_URL_WEB_APP_BARU_ANDA_DISINI" or not API_URL:
+        st.error("Gagal menghapus data: API_URL belum dikonfigurasi!")
+        return False
+    try:
+        payload = {
+            "sheetName": nama_tab,
+            "action": "DELETE",
+            "rowIndex": int(nomor_baris_gsheet)
+        }
+        response = requests.post(API_URL, data=json.dumps(payload), headers={"Content-Type": "application/json"})
+        return response.status_code == 200
+    except Exception:
         return False
 
 # Inisialisasi Session State Login
@@ -68,14 +76,11 @@ if not st.session_state.logged_in:
         
         if st.button("Masuk", type="primary"):
             if user_input and pass_input:
-                # Membaca data secara aman tanpa st-gsheets-connection
                 df_users = baca_dari_gsheet("Users")
                 user_found = False
                 
                 if df_users is not None and not df_users.empty:
-                    # Normalisasi nama kolom menjadi huruf kecil semua agar tidak sensitif
                     df_users.columns = [str(col).strip().lower() for col in df_users.columns]
-                    
                     if "username" in df_users.columns and "password" in df_users.columns:
                         df_users["username"] = df_users["username"].astype(str).str.strip().str.lower()
                         df_users["password"] = df_users["password"].astype(str).str.strip()
@@ -122,7 +127,7 @@ if not st.session_state.logged_in:
                             st.success("Akun berhasil didaftarkan! Silakan login melalui tab 'Login'.")
                             st.balloons()
                         else:
-                            st.error("Gagal menyimpan ke Google Sheets. Periksa URL Apps Script Anda.")
+                            st.error("Gagal menyimpan ke Google Sheets.")
             else:
                 st.warning("Semua kolom wajib diisi!")
 
@@ -161,7 +166,7 @@ else:
                 st.success(f"Berhasil disimpan: {nama_barang}")
                 st.rerun()
             else:
-                st.error("Gagal menyimpan data pengeluaran ke cloud.")
+                st.error("Gagal menyimpan data pengeluaran.")
 
     st.markdown("---")
     st.subheader("📊 Riwayat & Kelola Pengeluaran")
@@ -170,8 +175,12 @@ else:
     
     if df_all is not None and not df_all.empty:
         df_all.columns = [str(col).strip() for col in df_all.columns]
-        kolom_wajib = ["Username", "Hari", "Tanggal", "Bulan", "Nama Barang / Kebutuhan", "Harga (Rp)"]
         
+        # 💡 PENTING: Menghitung posisi nomor baris asli di Google Sheets secara dinamis
+        # Indeks pandas dimulai dari 0, ditambah 2 (karena baris Google Sheets mulai dari 1 dan baris pertama dipakai Judul/Header)
+        df_all['baris_gsheet'] = df_all.index + 2
+        
+        kolom_wajib = ["Username", "Hari", "Tanggal", "Bulan", "Nama Barang / Kebutuhan", "Harga (Rp)"]
         for k in kolom_wajib:
             if k not in df_all.columns:
                 df_all[k] = ""
@@ -184,6 +193,7 @@ else:
             for idx, row in df_user.iterrows():
                 nama_b = str(row['Nama Barang / Kebutuhan'])
                 tgl_b = str(row['Tanggal'])
+                baris_target = row['baris_gsheet']
                 
                 try:
                     val_harga = str(row['Harga (Rp)']).split('.')[0].split(',')[0]
@@ -192,8 +202,20 @@ else:
                     harga_b = 0
                     
                 total_user += harga_b
-                st.write(f"📅 **{tgl_b}** | {nama_b} — Rp {harga_b:,.0f}".replace(",", "."))
-                        
+                
+                # Tata letak kolom: Info pengeluaran di kiri (lebar 5), tombol hapus di kanan (lebar 1)
+                col_info, col_del = st.columns([5, 1])
+                with col_info:
+                    st.write(f"📅 **{tgl_b}** | {nama_b} — Rp {harga_b:,.0f}".replace(",", "."))
+                with col_del:
+                    # Setiap tombol hapus memiliki key unik berdasarkan nomor baris gsheet-nya
+                    if st.button("🗑️ Hapus", key=f"del_{baris_target}"):
+                        if hapus_dari_gsheet("Pengeluaran", baris_target):
+                            st.success("Terhapus!")
+                            st.rerun()
+                        else:
+                            st.error("Gagal hapus!")
+                            
             st.markdown("---")
             st.metric(label="Total Pengeluaran Anda Saat Ini", value=f"Rp {total_user:,.0f}".replace(",", "."))
         else:
