@@ -37,7 +37,6 @@ if not st.session_state.logged_in:
                     user_found = False
                     
                     if df_users is not None and not df_users.empty:
-                        # Membersihkan nama kolom dari spasi tidak sengaja
                         df_users.columns = df_users.columns.str.strip().str.lower()
                         if "username" in df_users.columns and "password" in df_users.columns:
                             df_users["username"] = df_users["username"].astype(str).str.strip().str.lower()
@@ -53,7 +52,7 @@ if not st.session_state.logged_in:
                     else:
                         st.error("Username atau Password salah!")
                 except Exception as e:
-                    st.error("Gagal membaca database akun. Hubungi admin.")
+                    st.error("Gagal membaca database akun. Pastikan tab 'Users' sudah benar.")
             else:
                 st.warning("Semua kolom harus diisi!")
 
@@ -71,7 +70,6 @@ if not st.session_state.logged_in:
                     st.error("Konfirmasi password tidak cocok!")
                 else:
                     try:
-                        # Membaca data dengan penanganan fail-safe jika kosong total
                         try:
                             df_users = conn.read(worksheet="Users", ttl=0)
                             if df_users is not None:
@@ -91,22 +89,17 @@ if not st.session_state.logged_in:
                         if username_exists:
                             st.error("Username sudah terpakai! Silakan gunakan nama lain.")
                         else:
-                            # Menyusun data baru
                             new_row = pd.DataFrame([{"username": str(new_user), "password": str(hash_password(new_pass))}])
-                            
                             if df_users.empty or "username" not in df_users.columns:
                                 df_updated = new_row
                             else:
                                 df_updated = pd.concat([df_users, new_row], ignore_index=True)
                             
-                            # Memaksa pembentukan ulang kolom agar terhindar dari anomali indeks
                             df_updated = df_updated[["username", "password"]].dropna()
-                            
-                            # Kirim ke Google Sheets
                             conn.update(worksheet="Users", data=df_updated)
                             st.success("Akun berhasil didaftarkan! Silakan klik tab 'Login' di atas.")
                     except Exception as e:
-                        st.error("Gagal mendaftarkan akun. Pastikan tab 'Users' di Google Sheets memiliki baris contoh.")
+                        st.error("Gagal menyimpan akun baru ke Google Sheets.")
             else:
                 st.warning("Semua kolom wajib diisi!")
 
@@ -171,7 +164,7 @@ else:
                 st.success(f"Berhasil disimpan: {nama_barang}")
                 st.rerun()
             except Exception as e:
-                st.error("Gagal menyimpan data ke Google Sheets.")
+                st.error("Gagal menyimpan data pengeluaran ke Google Sheets.")
 
     st.markdown("---")
     st.subheader("📊 Riwayat & Kelola Pengeluaran")
@@ -180,8 +173,12 @@ else:
         df_all = conn.read(worksheet="Pengeluaran", ttl=0)
         
         if df_all is not None and not df_all.empty:
+            # Normalisasi nama kolom agar aman dari variasi spasi
             df_all.columns = df_all.columns.str.strip()
-            if "Username" in df_all.columns:
+            
+            # Cek kelengkapan kolom dasar
+            kolom_wajib = ["Username", "Hari", "Tanggal", "Bulan", "Nama Barang / Kebutuhan", "Harga (Rp)"]
+            if all(k in df_all.columns for k in kolom_wajib):
                 df_all['index_asli'] = df_all.index
                 df_user = df_all[df_all["Username"].astype(str).str.strip().str.lower() == st.session_state.username]
                 
@@ -191,7 +188,12 @@ else:
                         index_target = row['index_asli']
                         nama_b = row['Nama Barang / Kebutuhan']
                         tgl_b = row['Tanggal']
-                        harga_b = int(row['Harga (Rp)'])
+                        
+                        try:
+                            harga_b = int(float(str(row['Harga (Rp)']).replace('.', '').replace(',', '')))
+                        except:
+                            harga_b = 0
+                            
                         total_user += harga_b
                         
                         col_text, col_btn = st.columns([5, 1])
@@ -199,8 +201,10 @@ else:
                             st.write(f"📅 **{tgl_b}** | {nama_b} — Rp {harga_b:,.0f}".replace(",", "."))
                         with col_btn:
                             if st.button("🗑️ Hapus", key=f"del_{index_target}"):
-                                df_all_updated = df_all.drop(index_target).drop(columns=['index_asli'])
-                                df_all_updated = df_all_updated[["Username", "Hari", "Tanggal", "Bulan", "Nama Barang / Kebutuhan", "Harga (Rp)"]]
+                                df_all_updated = df_all.drop(index_target)
+                                if 'index_asli' in df_all_updated.columns:
+                                    df_all_updated = df_all_updated.drop(columns=['index_asli'])
+                                df_all_updated = df_all_updated[kolom_wajib]
                                 conn.update(worksheet="Pengeluaran", data=df_all_updated)
                                 st.success("Data berhasil dihapus!")
                                 st.rerun()
@@ -210,8 +214,8 @@ else:
                 else:
                     st.info("Belum ada riwayat pengeluaran pada akun Anda.")
             else:
-                st.info("Database struktur pengeluaran tidak valid.")
+                st.error("Struktur kolom pada tab 'Pengeluaran' di Google Sheets Anda tidak sesuai.")
         else:
             st.info("Database pengeluaran di Google Sheets masih kosong.")
     except Exception as e:
-        st.error("Sedang menyinkronkan data dengan Google Sheets...")
+        st.error("Gagal memproses data tampilan riwayat.")
