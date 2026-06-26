@@ -37,10 +37,13 @@ if not st.session_state.logged_in:
                     user_found = False
                     
                     if df_users is not None and not df_users.empty:
-                        df_users.columns = df_users.columns.str.strip().str.lower()
-                        if "username" in df_users.columns and "password" in df_users.columns:
-                            df_users["username"] = df_users["username"].astype(str).str.strip().str.lower()
-                            match = df_users[(df_users["username"] == user_input) & (df_users["password"] == hash_password(pass_input))]
+                        # Bersihkan spasi di nama kolom tanpa mengubah ke huruf kecil
+                        df_users.columns = df_users.columns.str.strip()
+                        
+                        # Cek kecocokan menggunakan kolom "Username" dan "Password" (Kapital)
+                        if "Username" in df_users.columns and "Password" in df_users.columns:
+                            df_users["Username"] = df_users["Username"].astype(str).str.strip().str.lower()
+                            match = df_users[(df_users["Username"] == user_input) & (df_users["Password"] == hash_password(pass_input))]
                             if not match.empty:
                                 user_found = True
                     
@@ -72,30 +75,38 @@ if not st.session_state.logged_in:
                     try:
                         try:
                             df_users = conn.read(worksheet="Users", ttl=0)
-                            if df_users is not None:
-                                df_users.columns = df_users.columns.str.strip().str.lower()
                         except:
-                            df_users = pd.DataFrame(columns=["username", "password"])
+                            df_users = pd.DataFrame(columns=["Username", "Password"])
                         
                         if df_users is None or df_users.empty:
-                            df_users = pd.DataFrame(columns=["username", "password"])
-                            
+                            df_users = pd.DataFrame(columns=["Username", "Password"])
+                        
+                        # Normalisasi nama kolom agar seragam menggunakan huruf kapital di awal
+                        df_users.columns = df_users.columns.str.strip()
+                        
+                        if "Username" not in df_users.columns:
+                            df_users["Username"] = ""
+                        if "Password" not in df_users.columns:
+                            df_users["Password"] = ""
+                        
                         username_exists = False
-                        if "username" in df_users.columns and not df_users.empty:
-                            df_users["username"] = df_users["username"].astype(str).str.strip().str.lower()
-                            if new_user in df_users["username"].values:
+                        if not df_users.empty:
+                            df_users["Username"] = df_users["Username"].astype(str).str.strip().str.lower()
+                            if new_user in df_users["Username"].values:
                                 username_exists = True
                         
                         if username_exists:
                             st.error("Username sudah terpakai! Silakan gunakan nama lain.")
                         else:
-                            new_row = pd.DataFrame([{"username": str(new_user), "password": str(hash_password(new_pass))}])
-                            if df_users.empty or "username" not in df_users.columns:
-                                df_updated = new_row
-                            else:
-                                df_updated = pd.concat([df_users, new_row], ignore_index=True)
+                            # Gunakan struktur Kolom Kapital agar sesuai dengan Google Sheets
+                            new_row = pd.DataFrame([{
+                                "Username": str(new_user), 
+                                "Password": str(hash_password(new_pass))
+                            }])
                             
-                            df_updated = df_updated[["username", "password"]].dropna()
+                            df_updated = pd.concat([df_users, new_row], ignore_index=True)
+                            df_updated = df_updated[["Username", "Password"]].dropna(subset=["Username"])
+                            
                             conn.update(worksheet="Users", data=df_updated)
                             st.success("Akun berhasil didaftarkan! Silakan klik tab 'Login' di atas.")
                     except Exception as e:
@@ -173,20 +184,18 @@ else:
         df_all = conn.read(worksheet="Pengeluaran", ttl=0)
         
         if df_all is not None and not df_all.empty:
-            # Normalisasi kolom pembaca aman
             df_all.columns = df_all.columns.str.strip()
             kolom_wajib = ["Username", "Hari", "Tanggal", "Bulan", "Nama Barang / Kebutuhan", "Harga (Rp)"]
             
-            # Buat otomatis jika kolom tidak sengaja hilang
             for k in kolom_wajib:
                 if k not in df_all.columns:
                     df_all[k] = ""
                     
             df_all['index_asli'] = df_all.index
             
-            # Filter data milik user aktif dengan aman
-            df_all["Username"] = df_all["Username"].astype(str).str.strip().str.lower()
-            df_user = df_all[df_all["Username"] == str(st.session_state.username).lower()]
+            # Filter tanpa mengubah permanen kolom Username menjadi huruf kecil agar saat save-back tidak rusak
+            df_all_lower_user = df_all["Username"].astype(str).str.strip().str.lower()
+            df_user = df_all[df_all_lower_user == str(st.session_state.username).lower()]
             
             if not df_user.empty:
                 total_user = 0
@@ -195,7 +204,6 @@ else:
                     nama_b = str(row['Nama Barang / Kebutuhan'])
                     tgl_b = str(row['Tanggal'])
                     
-                    # Konversi harga super aman dari segala bentuk teks/null
                     try:
                         val_harga = str(row['Harga (Rp)']).split('.')[0].split(',')[0]
                         harga_b = int(''.join(filter(str.isdigit, val_harga)))
@@ -213,7 +221,6 @@ else:
                             if 'index_asli' in df_all_updated.columns:
                                 df_all_updated = df_all_updated.drop(columns=['index_asli'])
                             
-                            # Mengembalikan kapitalisasi awal kolom database
                             df_all_updated.columns = df_all_updated.columns.str.strip()
                             df_all_updated = df_all_updated[["Username", "Hari", "Tanggal", "Bulan", "Nama Barang / Kebutuhan", "Harga (Rp)"]]
                             conn.update(worksheet="Pengeluaran", data=df_all_updated)
