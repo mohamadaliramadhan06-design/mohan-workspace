@@ -1,8 +1,8 @@
 streamlit
+st-gsheets-connection
 pandas
 opencv-python-headless
 numpy
 Pillow
 pytz
 openpyxl
-streamlit-gsheets
