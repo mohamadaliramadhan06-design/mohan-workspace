@@ -10,11 +10,9 @@ import hashlib
 DB_FILE = "Database_Multiuser.xlsx"
 
 def hash_password(password):
-    """Mengubah password menjadi kode unik acak demi keamanan"""
     return hashlib.sha256(str.encode(password)).hexdigest()
 
 def inisialisasi_database():
-    """Membuat file Excel database jika belum ada"""
     if not os.path.exists(DB_FILE):
         wb = openpyxl.Workbook()
         
@@ -41,24 +39,20 @@ def inisialisasi_database():
             
         wb.save(DB_FILE)
 
-# Jalankan inisialisasi database di awal
 inisialisasi_database()
 
 # --- PENGATURAN HALAMAN WEB ---
 st.set_page_config(page_title="Aplikasi Keuangan Bersama", page_icon="💰", layout="centered")
 
-# Menggunakan Session State Streamlit untuk melacak apakah user sudah login atau belum
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
     st.session_state.username = ""
 
-# --- HALAMAN BELUM LOGIN (LOGIN / REGISTRASI) ---
+# --- HALAMAN BELUM LOGIN ---
 if not st.session_state.logged_in:
     st.title("🔐 Akses Sistem Keuangan")
-    
     tab_login, tab_reg = st.tabs(["🔑 Login", "📝 Daftar Akun Baru"])
     
-    # --- PROSES LOGIN ---
     with tab_login:
         st.subheader("Silakan Login")
         user_input = st.text_input("Username", key="login_user").strip().lower()
@@ -68,17 +62,11 @@ if not st.session_state.logged_in:
             if user_input and pass_input:
                 wb = openpyxl.load_workbook(DB_FILE)
                 ws = wb["Users"]
-                
-                # Cari user di excel
                 user_found = False
                 for row in range(2, ws.max_row + 1):
-                    db_user = ws.cell(row=row, column=1).value
-                    db_pass = ws.cell(row=row, column=2).value
-                    
-                    if db_user == user_input and db_pass == hash_password(pass_input):
+                    if ws.cell(row=row, column=1).value == user_input and ws.cell(row=row, column=2).value == hash_password(pass_input):
                         user_found = True
                         break
-                
                 if user_found:
                     st.session_state.logged_in = True
                     st.session_state.username = user_input
@@ -89,7 +77,6 @@ if not st.session_state.logged_in:
             else:
                 st.warning("Semua kolom harus diisi!")
 
-    # --- PROSES REGISTRASI ---
     with tab_reg:
         st.subheader("Buat Akun Baru")
         new_user = st.text_input("Buat Username", key="reg_user").strip().lower()
@@ -103,27 +90,22 @@ if not st.session_state.logged_in:
                 else:
                     wb = openpyxl.load_workbook(DB_FILE)
                     ws = wb["Users"]
-                    
-                    # Cek apakah username sudah terpakai
                     username_exists = False
                     for row in range(2, ws.max_row + 1):
                         if ws.cell(row=row, column=1).value == new_user:
                             username_exists = True
                             break
-                    
                     if username_exists:
-                        st.error("Username sudah terpakai! Silakan cari nama lain.")
+                        st.error("Username sudah terpakai!")
                     else:
-                        # Simpan akun baru ke Excel
                         ws.append([new_user, hash_password(new_pass)])
                         wb.save(DB_FILE)
-                        st.success("Akun berhasil dibuat! Silakan pindah ke tab Login.")
+                        st.success("Akun berhasil dibuat! Silakan Login.")
             else:
                 st.warning("Semua kolom wajib diisi!")
 
 # --- HALAMAN SETELAH BERHASIL LOGIN ---
 else:
-    # Header Aplikasi
     st.sidebar.title(f"👤 Akun: {st.session_state.username.capitalize()}")
     if st.sidebar.button("🚪 Logout/Keluar"):
         st.session_state.logged_in = False
@@ -144,73 +126,82 @@ else:
         elif harga <= 0:
             st.error("Harga harus lebih dari 0!")
         else:
-            # Ambil waktu otomatis
             sekarang = datetime.now()
             hari_indo = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"]
             hari = hari_indo[sekarang.weekday()]
-            tanggal = sekarang.strftime("%Y-%m-%d")
+            tanggal = hardcore_date = sekarang.strftime("%Y-%m-%d")
             bulan_indo = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", 
                           "Juli", "Agustus", "September", "Oktober", "November", "Desember"]
             bulan = bulan_indo[sekarang.month - 1]
             
-            # Tulis ke lembar Pengeluaran Excel
             wb = openpyxl.load_workbook(DB_FILE)
             ws = wb["Pengeluaran"]
-            
-            # Tambahkan baris baru (Ada kolom username di paling depan)
             ws.append([st.session_state.username, hari, tanggal, bulan, nama_barang, harga])
-            
-            # Atur format uang rupiah di Excel
-            row_terakhir = ws.max_row
-            ws.cell(row=row_terakhir, column=6).number_format = '#,##0'
-            
+            ws.cell(row=ws.max_row, column=6).number_format = '#,##0'
             wb.save(DB_FILE)
-            st.success(f"Berhasil disimpan ke akun Anda: {nama_barang}")
+            st.success(f"Berhasil disimpan: {nama_barang}")
             st.rerun()
 
     st.markdown("---")
-    st.subheader("📊 Riwayat Pengeluaran Pribadi Anda")
     
-    # Tampilkan data tabel, TETAPI di-filter hanya milik user yang sedang login
+    # --- FITUR BARU: MANAGEMENT DATA & HAPUS DATA SALAH INPUT ---
+    st.subheader("📊 Riwayat & Kelola Pengeluaran")
+    
     try:
-        df = pd.read_excel(DB_FILE, sheet_name="Pengeluaran")
+        wb = openpyxl.load_workbook(DB_FILE)
+        ws = wb["Pengeluaran"]
         
-        # Filter data berdasarkan username yang login
-        df_user = df[df["Username"] == st.session_state.username]
+        # Ambil data dari Excel ke list untuk diproses
+        data_rows = []
+        for row in range(2, ws.max_row + 1):
+            vals = [ws.cell(row=row, column=col).value for col in range(1, 7)]
+            # Menyimpan info nomor baris asli Excel di akhir elemen list (indeks ke-6)
+            vals.append(row) 
+            data_rows.append(vals)
+            
+        # Filter hanya data milik user yang sedang aktif login
+        user_entries = [r for r in data_rows if r[0] == st.session_state.username]
         
-        if not df_user.empty:
-            # Hapus kolom username saat ditampilkan di web agar lebih privat
-            df_display = df_user.drop(columns=["Username"])
+        if user_entries:
+            # Tampilkan tombol hapus per baris data
+            st.write("Jika ada data yang salah input, klik tombol **Hapus** di samping kanan data:")
             
-            # Format tampilan mata uang rupiah
-            df_display["Harga (Rp)"] = df_display["Harga (Rp)"].apply(lambda x: f"Rp {x:,.0f}".replace(",", "."))
-            
-            # Tampilkan tabel di web
-            st.dataframe(df_display, use_container_width=True, hide_index=True)
-            
-            # Hitung total khusus user tersebut
-            total_user = df_user["Harga (Rp)"].sum()
-            st.metric(label="Total Pengeluaran Anda", value=f"Rp {total_user:,.0f}".replace(",", "."))
-            
-            # Tombol unduh data khusus milik user tersebut
+            total_user = 0
+            for entry in user_entries:
+                # entry format: [username, hari, tanggal, bulan, nama_barang, harga, baris_excel]
+                row_id = entry[6]
+                nama_b = entry[4]
+                tgl_b = entry[2]
+                harga_b = entry[5]
+                total_user += harga_b
+                
+                # Buat layout kolom kecil di web untuk teks dan tombol hapus
+                col_text, col_btn = st.columns([5, 1])
+                with col_text:
+                    st.write(f"📅 **{tgl_b}** | {nama_b} — **Rp {harga_b:,.0f}".replace(",", "."))
+                with col_btn:
+                    # Tombol hapus unik berdasarkan nomor baris asli di file Excel
+                    if st.button("🗑️ Hapus", key=f"del_{row_id}"):
+                        # Hapus baris di excel
+                        wb.delete_rows(row_id)
+                        wb.save(DB_FILE)
+                        st.success("Data berhasil dihapus!")
+                        st.rerun()
+                        
             st.markdown("---")
-            st.subheader("📂 Download Data Pribadi")
+            st.metric(label="Total Pengeluaran Anda Saat Ini", value=f"Rp {total_user:,.0f}".replace(",", "."))
             
-            # Ekspor hasil filter ke file excel sementara untuk didownload user
+            # Ekspor ulang hasil filter ke file untuk didownload jika diperlukan
+            st.subheader("📂 Download Data Pribadi")
+            df_download = pd.DataFrame([e[1:6] for e in user_entries], columns=["Hari", "Tanggal", "Bulan", "Nama Barang / Kebutuhan", "Harga (Rp)"])
             file_download_name = f"Pengeluaran_{st.session_state.username}.xlsx"
-            df_user.to_excel(file_download_name, index=False)
+            df_download.to_excel(file_download_name, index=False)
             
             with open(file_download_name, "rb") as file:
-                st.download_button(
-                    label="📥 Download Excel Pengeluaran Saya",
-                    data=file,
-                    file_name=file_download_name,
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                )
-            # Hapus file sampah lokal setelah dibaca memori
+                st.download_button(label="📥 Download Excel Pengeluaran Saya", data=file, file_name=file_download_name, mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
             if os.path.exists(file_download_name):
                 os.remove(file_download_name)
         else:
             st.info("Belum ada riwayat pengeluaran pada akun Anda.")
     except Exception as e:
-        st.error("Belum ada database pengeluaran yang terbentuk.")
+        st.error("Gagal membaca atau memproses database.")
