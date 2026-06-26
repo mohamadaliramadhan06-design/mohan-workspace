@@ -8,7 +8,7 @@ import json
 st.set_page_config(page_title="Harian Keuangan", page_icon="💰", layout="centered")
 
 # =========================================================================
-# ⚠️ ISI KEDUA KONFIGURASI DI BAWAH INI DENGAN BENAR
+# ⚙️ CONFIGURATION (SUDAH DIISI SESUAI URL ANDA)
 # =========================================================================
 SPREADSHEET_ID = "19WepkG5jBNasCwIqH3ii4Yg1Cskyf_zB41M7G_MAlo0"
 API_URL = "https://script.google.com/macros/s/AKfycbwr7TSnzbrdbK9qKVJUibcaZ4UfWfCbVm5BfExgbi6nqPbVGcrgelhdAa2RyzTN22hMQA/exec"
@@ -16,9 +16,6 @@ API_URL = "https://script.google.com/macros/s/AKfycbwr7TSnzbrdbK9qKVJUibcaZ4UfWf
 
 # Fungsi untuk Membaca Google Sheets
 def baca_dari_gsheet(nama_tab):
-    if SPREADSHEET_ID == "PASTE_ID_SPREADSHEET_ANDA_DISINI":
-        st.error("SPREADSHEET_ID belum diisi di dalam kode!")
-        return None
     try:
         url = f"https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}/gviz/tq?tqx=out:csv&sheet={nama_tab}"
         df = pd.read_csv(url)
@@ -29,9 +26,6 @@ def baca_dari_gsheet(nama_tab):
 
 # Fungsi Menyimpan Data via Google Apps Script
 def simpan_ke_gsheet(nama_tab, data_baris):
-    if API_URL == "PASTE_URL_WEB_APP_BARU_ANDA_DISINI" or not API_URL:
-        st.error("Gagal mengirim data: API_URL belum dikonfigurasi!")
-        return False
     try:
         payload = {
             "sheetName": nama_tab,
@@ -43,11 +37,8 @@ def simpan_ke_gsheet(nama_tab, data_baris):
     except Exception:
         return False
 
-# FITUR BARU: Fungsi Menghapus Data Berdasarkan Nomor Baris Asli di Google Sheets
+# Fungsi Menghapus Data Berdasarkan Nomor Baris Asli di Google Sheets
 def hapus_dari_gsheet(nama_tab, nomor_baris_gsheet):
-    if API_URL == "PASTE_URL_WEB_APP_BARU_ANDA_DISINI" or not API_URL:
-        st.error("Gagal menghapus data: API_URL belum dikonfigurasi!")
-        return False
     try:
         payload = {
             "sheetName": nama_tab,
@@ -59,7 +50,7 @@ def hapus_dari_gsheet(nama_tab, nomor_baris_gsheet):
     except Exception:
         return False
 
-# Inisialisasi Session State Login
+# --- FITUR ANTI-LOGOUT (SESSION REMEMBER) ---
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
     st.session_state.username = ""
@@ -134,7 +125,7 @@ if not st.session_state.logged_in:
 # --- HALAMAN SETELAH BERHASIL LOGIN ---
 else:
     st.sidebar.title(f"👤 Akun: {st.session_state.username.capitalize()}")
-    if st.sidebar.button("🚪 Logout/Keluar"):
+    if st.sidebar.button("🚪 Logout/Keluar Akun"):
         st.session_state.logged_in = False
         st.session_state.username = ""
         st.rerun()
@@ -143,6 +134,8 @@ else:
     st.write("Catat pengeluaran pribadi Anda langsung ke cloud.")
     st.markdown("---")
     
+    # 📆 Fitur Pilih Tanggal Mandiri (Default adalah hari ini)
+    tanggal_pilihan = st.date_input("Pilih Tanggal Pengeluaran", value=datetime.now().date())
     nama_barang = st.text_input("Nama Barang / Kebutuhan", placeholder="Contoh: Bensin, Makan Siang")
     harga = st.number_input("Harga (Rp)", min_value=0, step=1000, value=0)
     
@@ -152,15 +145,15 @@ else:
         elif harga <= 0:
             st.error("Harga harus lebih dari 0!")
         else:
-            sekarang = datetime.now()
             hari_indo = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"]
-            hari = hari_indo[sekarang.weekday()]
-            tanggal = sekarang.strftime("%Y-%m-%d")
+            hari = hari_indo[tanggal_pilihan.weekday()]
+            tanggal_str = tanggal_pilihan.strftime("%Y-%m-%d")
+            
             bulan_indo = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", 
                           "Juli", "Agustus", "September", "Oktober", "November", "Desember"]
-            bulan = bulan_indo[sekarang.month - 1]
+            bulan = bulan_indo[tanggal_pilihan.month - 1]
             
-            data_pengeluaran = [str(st.session_state.username), str(hari), str(tanggal), str(bulan), str(nama_barang), int(harga)]
+            data_pengeluaran = [str(st.session_state.username), str(hari), str(tanggal_str), str(bulan), str(nama_barang), int(harga)]
             
             if simpan_ke_gsheet("Pengeluaran", data_pengeluaran):
                 st.success(f"Berhasil disimpan: {nama_barang}")
@@ -176,8 +169,7 @@ else:
     if df_all is not None and not df_all.empty:
         df_all.columns = [str(col).strip() for col in df_all.columns]
         
-        # 💡 PENTING: Menghitung posisi nomor baris asli di Google Sheets secara dinamis
-        # Indeks pandas dimulai dari 0, ditambah 2 (karena baris Google Sheets mulai dari 1 dan baris pertama dipakai Judul/Header)
+        # Menghitung nomor baris asli di Google Sheets secara dinamis
         df_all['baris_gsheet'] = df_all.index + 2
         
         kolom_wajib = ["Username", "Hari", "Tanggal", "Bulan", "Nama Barang / Kebutuhan", "Harga (Rp)"]
@@ -203,18 +195,17 @@ else:
                     
                 total_user += harga_b
                 
-                # Tata letak kolom: Info pengeluaran di kiri (lebar 5), tombol hapus di kanan (lebar 1)
                 col_info, col_del = st.columns([5, 1])
                 with col_info:
                     st.write(f"📅 **{tgl_b}** | {nama_b} — Rp {harga_b:,.0f}".replace(",", "."))
                 with col_del:
-                    # Setiap tombol hapus memiliki key unik berdasarkan nomor baris gsheet-nya
+                    # Tombol hapus real-time gsheet
                     if st.button("🗑️ Hapus", key=f"del_{baris_target}"):
                         if hapus_dari_gsheet("Pengeluaran", baris_target):
                             st.success("Terhapus!")
                             st.rerun()
                         else:
-                            st.error("Gagal hapus!")
+                            st.error("Gagal!")
                             
             st.markdown("---")
             st.metric(label="Total Pengeluaran Anda Saat Ini", value=f"Rp {total_user:,.0f}".replace(",", "."))
