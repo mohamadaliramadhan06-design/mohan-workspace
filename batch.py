@@ -223,11 +223,13 @@ else:
                 else:
                     total_pengeluaran += harga_b
 
-    # Hitung sisa saldo murni dari matematika cloud
+    # Hitung sisa saldo murni
     saldo_sekarang = total_pemasukan - total_pengeluaran
+    saldo_format = f"Rp {saldo_sekarang:,.0f}".replace(",", ".")
 
     # 2. SIDEBAR DESAIN
-    st.sidebar.markdown(f"<h3 style='text-align: center; color: #1e293b;'>👤 Akun: {st.session_state.username.capitalize()}</h3>", unsafe_allow_html=True)
+    nama_user_cap = str(st.session_state.username).capitalize()
+    st.sidebar.markdown(f"<h3 style='text-align: center; color: #1e293b;'>👤 Akun: {nama_user_cap}</h3>", unsafe_allow_html=True)
     st.sidebar.markdown("<br>", unsafe_allow_html=True)
     
     # Tampilkan info ringkas saldo berbentuk Box Elegan di Sidebar
@@ -235,9 +237,9 @@ else:
         f"""
         <div class='metric-card'>
             <div class='metric-title'>💰 SISA SALDO ANDA</div>
-            <div class='metric-value'>Rp {saldo_sekarang:,.0f}</div>
+            <div class='metric-value'>{saldo_format}</div>
         </div>
-        """.replace(",", "."), 
+        """, 
         unsafe_allow_html=True
     )
     
@@ -248,4 +250,14 @@ else:
         st.rerun()
         
     # 3. HALAMAN UTAMA
-    st.markdown(f"<h2>💰 Harian Keuangan: {st.session_state.
+    st.markdown(f"<h2>💰 Harian Keuangan: {nama_user_cap}</h2>", unsafe_allow_html=True)
+    st.markdown("<p style='color:#64748b;'>Catat keuangan pribadi Anda langsung ke cloud secara terstruktur.</p>", unsafe_allow_html=True)
+    st.markdown("---")
+    
+    # Dashboard Utama berbentuk Row Kartu Grid
+    pemasukan_format = f"Rp {total_pemasukan:,.0f}".replace(",", ".")
+    pengeluaran_format = f"Rp {total_pengeluaran:,.0f}".replace(",", ".")
+    
+    col_m1, col_m2 = st.columns(2)
+    with col_m1:
+        st.markdown(
