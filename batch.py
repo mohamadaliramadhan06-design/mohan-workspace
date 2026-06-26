@@ -2,10 +2,6 @@ import streamlit as st
 from streamlit_gsheets import GSheetsConnection
 from datetime import datetime
 import pandas as pd
-import hashlib
-
-def hash_password(password):
-    return hashlib.sha256(str.encode(password)).hexdigest()
 
 # --- PENGATURAN HALAMAN WEB ---
 st.set_page_config(page_title="Harian Keuangan", page_icon="💰", layout="centered")
@@ -37,13 +33,15 @@ if not st.session_state.logged_in:
                     user_found = False
                     
                     if df_users is not None and not df_users.empty:
-                        # Bersihkan spasi di nama kolom tanpa mengubah ke huruf kecil
-                        df_users.columns = df_users.columns.str.strip()
+                        # Samakan nama kolom menjadi huruf kecil sesuai Google Sheets Anda
+                        df_users.columns = df_users.columns.str.strip().str.lower()
                         
-                        # Cek kecocokan menggunakan kolom "Username" dan "Password" (Kapital)
-                        if "Username" in df_users.columns and "Password" in df_users.columns:
-                            df_users["Username"] = df_users["Username"].astype(str).str.strip().str.lower()
-                            match = df_users[(df_users["Username"] == user_input) & (df_users["Password"] == hash_password(pass_input))]
+                        if "username" in df_users.columns and "password" in df_users.columns:
+                            df_users["username"] = df_users["username"].astype(str).str.strip().str.lower()
+                            df_users["password"] = df_users["password"].astype(str).str.strip()
+                            
+                            # Cek tanpa menggunakan hashing agar sesuai dengan data 'admin123' Anda
+                            match = df_users[(df_users["username"] == user_input) & (df_users["password"] == pass_input)]
                             if not match.empty:
                                 user_found = True
                     
@@ -76,36 +74,36 @@ if not st.session_state.logged_in:
                         try:
                             df_users = conn.read(worksheet="Users", ttl=0)
                         except:
-                            df_users = pd.DataFrame(columns=["Username", "Password"])
+                            df_users = pd.DataFrame(columns=["username", "password"])
                         
                         if df_users is None or df_users.empty:
-                            df_users = pd.DataFrame(columns=["Username", "Password"])
+                            df_users = pd.DataFrame(columns=["username", "password"])
                         
-                        # Normalisasi nama kolom agar seragam menggunakan huruf kapital di awal
-                        df_users.columns = df_users.columns.str.strip()
+                        # Pastikan nama kolom diubah menjadi huruf kecil (Sesuai image_aef746.png)
+                        df_users.columns = df_users.columns.str.strip().str.lower()
                         
-                        if "Username" not in df_users.columns:
-                            df_users["Username"] = ""
-                        if "Password" not in df_users.columns:
-                            df_users["Password"] = ""
+                        if "username" not in df_users.columns:
+                            df_users["username"] = ""
+                        if "password" not in df_users.columns:
+                            df_users["password"] = ""
                         
                         username_exists = False
                         if not df_users.empty:
-                            df_users["Username"] = df_users["Username"].astype(str).str.strip().str.lower()
-                            if new_user in df_users["Username"].values:
+                            df_users["username"] = df_users["username"].astype(str).str.strip().str.lower()
+                            if new_user in df_users["username"].values:
                                 username_exists = True
                         
                         if username_exists:
                             st.error("Username sudah terpakai! Silakan gunakan nama lain.")
                         else:
-                            # Gunakan struktur Kolom Kapital agar sesuai dengan Google Sheets
+                            # Membuat baris baru dengan kolom huruf kecil agar sinkron
                             new_row = pd.DataFrame([{
-                                "Username": str(new_user), 
-                                "Password": str(hash_password(new_pass))
+                                "username": str(new_user), 
+                                "password": str(new_pass)
                             }])
                             
                             df_updated = pd.concat([df_users, new_row], ignore_index=True)
-                            df_updated = df_updated[["Username", "Password"]].dropna(subset=["Username"])
+                            df_updated = df_updated[["username", "password"]].dropna(subset=["username"])
                             
                             conn.update(worksheet="Users", data=df_updated)
                             st.success("Akun berhasil didaftarkan! Silakan klik tab 'Login' di atas.")
@@ -139,7 +137,7 @@ else:
             sekarang = datetime.now()
             hari_indo = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"]
             hari = hari_indo[sekarang.weekday()]
-            tanggal = sekarang.strftime("%Y-%m-%d")
+            tanggal = grandma = sekarang.strftime("%Y-%m-%d")
             bulan_indo = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", 
                           "Juli", "Agustus", "September", "Oktober", "November", "Desember"]
             bulan = bulan_indo[sekarang.month - 1]
@@ -193,7 +191,6 @@ else:
                     
             df_all['index_asli'] = df_all.index
             
-            # Filter tanpa mengubah permanen kolom Username menjadi huruf kecil agar saat save-back tidak rusak
             df_all_lower_user = df_all["Username"].astype(str).str.strip().str.lower()
             df_user = df_all[df_all_lower_user == str(st.session_state.username).lower()]
             
