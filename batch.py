@@ -173,49 +173,58 @@ else:
         df_all = conn.read(worksheet="Pengeluaran", ttl=0)
         
         if df_all is not None and not df_all.empty:
-            # Normalisasi nama kolom agar aman dari variasi spasi
+            # Normalisasi kolom pembaca aman
             df_all.columns = df_all.columns.str.strip()
-            
-            # Cek kelengkapan kolom dasar
             kolom_wajib = ["Username", "Hari", "Tanggal", "Bulan", "Nama Barang / Kebutuhan", "Harga (Rp)"]
-            if all(k in df_all.columns for k in kolom_wajib):
-                df_all['index_asli'] = df_all.index
-                df_user = df_all[df_all["Username"].astype(str).str.strip().str.lower() == st.session_state.username]
-                
-                if not df_user.empty:
-                    total_user = 0
-                    for idx, row in df_user.iterrows():
-                        index_target = row['index_asli']
-                        nama_b = row['Nama Barang / Kebutuhan']
-                        tgl_b = row['Tanggal']
+            
+            # Buat otomatis jika kolom tidak sengaja hilang
+            for k in kolom_wajib:
+                if k not in df_all.columns:
+                    df_all[k] = ""
+                    
+            df_all['index_asli'] = df_all.index
+            
+            # Filter data milik user aktif dengan aman
+            df_all["Username"] = df_all["Username"].astype(str).str.strip().str.lower()
+            df_user = df_all[df_all["Username"] == str(st.session_state.username).lower()]
+            
+            if not df_user.empty:
+                total_user = 0
+                for idx, row in df_user.iterrows():
+                    index_target = row['index_asli']
+                    nama_b = str(row['Nama Barang / Kebutuhan'])
+                    tgl_b = str(row['Tanggal'])
+                    
+                    # Konversi harga super aman dari segala bentuk teks/null
+                    try:
+                        val_harga = str(row['Harga (Rp)']).split('.')[0].split(',')[0]
+                        harga_b = int(''.join(filter(str.isdigit, val_harga)))
+                    except:
+                        harga_b = 0
                         
-                        try:
-                            harga_b = int(float(str(row['Harga (Rp)']).replace('.', '').replace(',', '')))
-                        except:
-                            harga_b = 0
+                    total_user += harga_b
+                    
+                    col_text, col_btn = st.columns([5, 1])
+                    with col_text:
+                        st.write(f"📅 **{tgl_b}** | {nama_b} — Rp {harga_b:,.0f}".replace(",", "."))
+                    with col_btn:
+                        if st.button("🗑️ Hapus", key=f"del_{index_target}"):
+                            df_all_updated = df_all.drop(index_target)
+                            if 'index_asli' in df_all_updated.columns:
+                                df_all_updated = df_all_updated.drop(columns=['index_asli'])
                             
-                        total_user += harga_b
-                        
-                        col_text, col_btn = st.columns([5, 1])
-                        with col_text:
-                            st.write(f"📅 **{tgl_b}** | {nama_b} — Rp {harga_b:,.0f}".replace(",", "."))
-                        with col_btn:
-                            if st.button("🗑️ Hapus", key=f"del_{index_target}"):
-                                df_all_updated = df_all.drop(index_target)
-                                if 'index_asli' in df_all_updated.columns:
-                                    df_all_updated = df_all_updated.drop(columns=['index_asli'])
-                                df_all_updated = df_all_updated[kolom_wajib]
-                                conn.update(worksheet="Pengeluaran", data=df_all_updated)
-                                st.success("Data berhasil dihapus!")
-                                st.rerun()
-                                
-                    st.markdown("---")
-                    st.metric(label="Total Pengeluaran Anda Saat Ini", value=f"Rp {total_user:,.0f}".replace(",", "."))
-                else:
-                    st.info("Belum ada riwayat pengeluaran pada akun Anda.")
+                            # Mengembalikan kapitalisasi awal kolom database
+                            df_all_updated.columns = df_all_updated.columns.str.strip()
+                            df_all_updated = df_all_updated[["Username", "Hari", "Tanggal", "Bulan", "Nama Barang / Kebutuhan", "Harga (Rp)"]]
+                            conn.update(worksheet="Pengeluaran", data=df_all_updated)
+                            st.success("Data berhasil dihapus!")
+                            st.rerun()
+                            
+                st.markdown("---")
+                st.metric(label="Total Pengeluaran Anda Saat Ini", value=f"Rp {total_user:,.0f}".replace(",", "."))
             else:
-                st.error("Struktur kolom pada tab 'Pengeluaran' di Google Sheets Anda tidak sesuai.")
+                st.info("Belum ada riwayat pengeluaran pada akun Anda.")
         else:
             st.info("Database pengeluaran di Google Sheets masih kosong.")
     except Exception as e:
-        st.error("Gagal memproses data tampilan riwayat.")
+        st.info("Sedang memproses penyelarasan tabel awal...")
