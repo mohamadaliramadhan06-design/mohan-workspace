@@ -171,37 +171,76 @@ if "logged_in" not in st.session_state:
 if not st.session_state.logged_in:
     st.markdown("<h2 style='text-align: center; margin-top: 30px;'>🔐 Akses Sistem Keuangan</h2>", unsafe_allow_html=True)
     
-    # Membungkus halaman login ke dalam form agar ketikan tidak hilang saat tak sengaja reload
-    with st.form("form_autentikasi"):
-        st.subheader("Silakan Login / Masuk")
-        user_input = st.text_input("Username", key="login_user").strip().lower()
-        pass_input = st.text_input("Password", type="password", key="login_pass")
-        tombol_login = st.form_submit_button("Masuk Ke Aplikasi", type="primary")
+    # 💡 PERBAIKAN DI SINI: Menu Tab diletakkan di luar form agar kedua pilihan muncul kembali
+    tab_login, tab_reg = st.tabs(["🔑 Login", "📝 Daftar Akun Baru"])
+    
+    with tab_login:
+        # Membungkus bagian login dengan form terisolasi sendiri
+        with st.form("form_login_user"):
+            st.subheader("Silakan Login / Masuk")
+            user_input = st.text_input("Username", key="login_user").strip().lower()
+            pass_input = st.text_input("Password", type="password", key="login_pass")
+            tombol_login = st.form_submit_button("Masuk Ke Aplikasi", type="primary")
         
-    if tombol_login:
-        if user_input and pass_input:
-            df_users = baca_dari_gsheet("Users")
-            user_found = False
-            
-            if df_users is not None and not df_users.empty:
-                df_users.columns = [str(col).strip().lower() for col in df_users.columns]
-                if "username" in df_users.columns and "password" in df_users.columns:
-                    df_users["username"] = df_users["username"].astype(str).str.strip().str.lower()
-                    df_users["password"] = df_users["password"].astype(str).str.strip()
-                    
-                    match = df_users[(df_users["username"] == user_input) & (df_users["password"] == str(pass_input))]
-                    if not match.empty:
-                        user_found = True
-            
-            if user_found:
-                st.session_state.logged_in = True
-                st.session_state.username = user_input
-                st.success(f"Selamat datang kembali, {user_input.capitalize()}!")
-                st.rerun()
+        if tombol_login:
+            if user_input and pass_input:
+                df_users = baca_dari_gsheet("Users")
+                user_found = False
+                
+                if df_users is not None and not df_users.empty:
+                    df_users.columns = [str(col).strip().lower() for col in df_users.columns]
+                    if "username" in df_users.columns and "password" in df_users.columns:
+                        df_users["username"] = df_users["username"].astype(str).str.strip().str.lower()
+                        df_users["password"] = df_users["password"].astype(str).str.strip()
+                        
+                        match = df_users[(df_users["username"] == user_input) & (df_users["password"] == str(pass_input))]
+                        if not match.empty:
+                            user_found = True
+                
+                if user_found:
+                    st.session_state.logged_in = True
+                    st.session_state.username = user_input
+                    st.success(f"Selamat datang kembali, {user_input.capitalize()}!")
+                    st.rerun()
+                else:
+                    st.error("Username atau Password salah!")
             else:
-                st.error("Username atau Password salah!")
-        else:
-            st.warning("Semua kolom harus diisi!")
+                st.warning("Semua kolom harus diisi!")
+
+    with tab_reg:
+        # Membungkus bagian pendaftaran dengan form terisolasi sendiri
+        with st.form("form_daftar_akun"):
+            st.subheader("Buat Akun Baru")
+            new_user = st.text_input("Buat Username", key="reg_user").strip().lower()
+            new_pass = st.text_input("Buat Password", type="password", key="reg_pass")
+            confirm_pass = st.text_input("Konfirmasi Password", type="password", key="reg_pass_conf")
+            tombol_daftar = st.form_submit_button("Daftar Sekarang")
+        
+        if tombol_daftar:
+            if new_user and new_pass and confirm_pass:
+                if " " in new_user:
+                    st.error("Username tidak boleh mengandung spasi!")
+                elif new_pass != confirm_pass:
+                    st.error("Konfirmasi password tidak cocok!")
+                else:
+                    df_users = baca_dari_gsheet("Users")
+                    username_exists = False
+                    
+                    if df_users is not None and not df_users.empty:
+                        df_users.columns = [str(col).strip().lower() for col in df_users.columns]
+                        if "username" in df_users.columns:
+                            username_exists = new_user in df_users["username"].astype(str).values
+                    
+                    if username_exists:
+                        st.error("Username sudah terpakai! Silakan gunakan nama lain.")
+                    else:
+                        if simpan_ke_gsheet("Users", [str(new_user), str(new_pass)]):
+                            st.success("Akun berhasil didaftarkan! Silakan login melalui tab 'Login'.")
+                            st.balloons()
+                        else:
+                            st.error("Gagal menyimpan ke Google Sheets.")
+            else:
+                st.warning("Semua kolom wajib diisi!")
 
 # --- HALAMAN SETELAH LOGIN ---
 else:
@@ -297,7 +336,7 @@ else:
         
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # --- 💡 FORM INPUT TRANSAKSI BARU (DIBUNGKUS ST.FORM) ---
+    # --- FORM INPUT TRANSAKSI BARU (DIBUNGKUS ST.FORM) ---
     st.markdown("<div class='form-container'>", unsafe_allow_html=True)
     
     with st.form("input_transaksi_baru"):
