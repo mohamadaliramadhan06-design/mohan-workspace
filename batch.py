@@ -8,7 +8,7 @@ import json
 st.set_page_config(page_title="Harian Keuangan", page_icon="💰", layout="centered")
 
 # =========================================================================
-# 🎨 OPSI A: KUSTOMISASI LATAR BELAKANG WARNA SOLID (BIRU ELEGAN)
+# 🎨 KUSTOMISASI LATAR BELAKANG WARNA SOLID (BIRU ELEGAN)
 # =========================================================================
 st.markdown(
     """
@@ -150,17 +150,70 @@ if not st.session_state.logged_in:
 
 # --- HALAMAN SETELAH BERHASIL LOGIN ---
 else:
+    # 1. AMBIL DATA DAN HITUNG TOTAL PENGELUARAN LEBIH AWAL
+    df_all = baca_dari_gsheet("Pengeluaran")
+    total_user = 0
+    df_user = pd.DataFrame() # Inisialisasi dataframe kosong untuk user aktif
+    
+    if df_all is not None and not df_all.empty:
+        df_all.columns = [str(col).strip() for col in df_all.columns]
+        df_all['baris_gsheet'] = df_all.index + 2
+        
+        kolom_wajib = ["Username", "Hari", "Tanggal", "Bulan", "Nama Barang / Kebutuhan", "Harga (Rp)"]
+        for k in kolom_wajib:
+            if k not in df_all.columns:
+                df_all[k] = ""
+                
+        df_all_lower_user = df_all["Username"].astype(str).str.strip().str.lower()
+        df_user = df_all[df_all_lower_user == str(st.session_state.username).lower()]
+        
+        if not df_user.empty:
+            for idx, row in df_user.iterrows():
+                try:
+                    val_harga = str(row['Harga (Rp)']).split('.')[0].split(',')[0]
+                    harga_b = int(''.join(filter(str.isdigit, val_harga)))
+                except:
+                    harga_b = 0
+                total_user += harga_b
+
+    # 2. SIDEBAR (PENGATURAN SALDO & AKUN)
     st.sidebar.title(f"👤 Akun: {st.session_state.username.capitalize()}")
+    
+    st.sidebar.markdown("---")
+    st.sidebar.subheader("💰 Pengaturan Saldo")
+    # Menggunakan number_input agar user bisa mengatur saldo awalnya sendiri secara fleksibel
+    saldo_awal = st.sidebar.number_input(
+        "Masukkan Saldo Awal Anda (Rp)", 
+        min_value=0, 
+        value=1000000, # Nilai default awal (1 Juta)
+        step=50000,
+        key="saldo_awal_user"
+    )
+    
+    # Menghitung sisa saldo berjalan
+    saldo_sekarang = saldo_awal - total_user
+    
+    st.sidebar.markdown("---")
     if st.sidebar.button("🚪 Logout/Keluar Akun"):
         st.session_state.logged_in = False
         st.session_state.username = ""
         st.rerun()
         
+    # 3. HALAMAN UTAMA
     st.title(f"💰 Harian Keuangan: {st.session_state.username.capitalize()}")
     st.write("Catat pengeluaran pribadi Anda langsung ke cloud.")
     st.markdown("---")
     
-    # 📆 Fitur Pilih Tanggal Mandiri (Default adalah hari ini)
+    # Menampilkan Dashboard Indikator Keuangan Ringkas (Sisa Saldo & Pengeluaran)
+    col_m1, col_m2 = st.columns(2)
+    with col_m1:
+        st.metric(label="💰 Sisa Saldo Saat Ini", value=f"Rp {saldo_sekarang:,.0f}".replace(",", "."))
+    with col_m2:
+        st.metric(label="📊 Total Pengeluaran Anda", value=f"Rp {total_user:,.0f}".replace(",", "."))
+        
+    st.markdown("---")
+    
+    # --- FORM INPUT PENGELUARAN ---
     tanggal_pilihan = st.date_input("Pilih Tanggal Pengeluaran", value=datetime.now().date())
     nama_barang = st.text_input("Nama Barang / Kebutuhan", placeholder="Contoh: Bensin, Makan Siang")
     harga = st.number_input("Harga (Rp)", min_value=0, step=1000, value=0)
@@ -170,6 +223,9 @@ else:
             st.error("Nama barang tidak boleh kosong!")
         elif harga <= 0:
             st.error("Harga harus lebih dari 0!")
+        elif harga > saldo_sekarang:
+            # VALIDASI BARU: Mencegah simpan jika harga barang melebihi sisa saldo berjalan
+            st.error(f"❌ Saldo tidak cukup! Sisa saldo Anda saat ini adalah Rp {saldo_sekarang:,.0f}".replace(",", "."))
         else:
             hari_indo = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"]
             hari = hari_indo[tanggal_pilihan.weekday()]
@@ -187,55 +243,35 @@ else:
             else:
                 st.error("Gagal menyimpan data pengeluaran.")
 
+    # --- RIWAYAT & DAFTAR DATA ---
     st.markdown("---")
     st.subheader("📊 Riwayat & Kelola Pengeluaran")
     
-    df_all = baca_dari_gsheet("Pengeluaran")
-    
-    if df_all is not None and not df_all.empty:
-        df_all.columns = [str(col).strip() for col in df_all.columns]
-        
-        # Menghitung nomor baris asli di Google Sheets secara dinamis
-        df_all['baris_gsheet'] = df_all.index + 2
-        
-        kolom_wajib = ["Username", "Hari", "Tanggal", "Bulan", "Nama Barang / Kebutuhan", "Harga (Rp)"]
-        for k in kolom_wajib:
-            if k not in df_all.columns:
-                df_all[k] = ""
+    if df_all is not None and not df_all.empty and not df_user.empty:
+        for idx, row in df_user.iterrows():
+            nama_b = str(row['Nama Barang / Kebutuhan'])
+            tgl_b = str(row['Tanggal'])
+            baris_target = row['baris_gsheet']
+            
+            try:
+                val_harga = str(row['Harga (Rp)']).split('.')[0].split(',')[0]
+                harga_b = int(''.join(filter(str.isdigit, val_harga)))
+            except:
+                harga_b = 0
                 
-        df_all_lower_user = df_all["Username"].astype(str).str.strip().str.lower()
-        df_user = df_all[df_all_lower_user == str(st.session_state.username).lower()]
-        
-        if not df_user.empty:
-            total_user = 0
-            for idx, row in df_user.iterrows():
-                nama_b = str(row['Nama Barang / Kebutuhan'])
-                tgl_b = str(row['Tanggal'])
-                baris_target = row['baris_gsheet']
-                
-                try:
-                    val_harga = str(row['Harga (Rp)']).split('.')[0].split(',')[0]
-                    harga_b = int(''.join(filter(str.isdigit, val_harga)))
-                except:
-                    harga_b = 0
-                    
-                total_user += harga_b
-                
-                col_info, col_del = st.columns([5, 1])
-                with col_info:
-                    st.write(f"📅 **{tgl_b}** | {nama_b} — Rp {harga_b:,.0f}".replace(",", "."))
-                with col_del:
-                    # Tombol hapus real-time gsheet
-                    if st.button("🗑️ Hapus", key=f"del_{baris_target}"):
-                        if hapus_dari_gsheet("Pengeluaran", baris_target):
-                            st.success("Terhapus!")
-                            st.rerun()
-                        else:
-                            st.error("Gagal!")
-                            
-            st.markdown("---")
-            st.metric(label="Total Pengeluaran Anda Saat Ini", value=f"Rp {total_user:,.0f}".replace(",", "."))
+            col_info, col_del = st.columns([5, 1])
+            with col_info:
+                st.write(f"📅 **{tgl_b}** | {nama_b} — Rp {harga_b:,.0f}".replace(",", "."))
+            with col_del:
+                if st.button("🗑️ Hapus", key=f"del_{baris_target}"):
+                    if hapus_dari_gsheet("Pengeluaran", baris_target):
+                        st.success("Terhapus!")
+                        st.rerun()
+                    else:
+                        st.error("Gagal!")
+        st.markdown("---")
+    else:
+        if df_all is None or df_all.empty:
+            st.info("Database pengeluaran di Google Sheets masih kosong.")
         else:
             st.info("Belum ada riwayat pengeluaran pada akun Anda.")
-    else:
-        st.info("Database pengeluaran di Google Sheets masih kosong.")
