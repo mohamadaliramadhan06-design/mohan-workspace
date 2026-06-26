@@ -2,15 +2,36 @@ import streamlit as st
 from streamlit_gsheets import GSheetsConnection
 from datetime import datetime
 import pandas as pd
+import gspread
 
 # --- PENGATURAN HALAMAN WEB ---
 st.set_page_config(page_title="Harian Keuangan", page_icon="💰", layout="centered")
 
-# Inisialisasi Koneksi ke Google Sheets
+# Ambil URL Google Sheets langsung dari Secrets Streamlit Anda
+try:
+    spreadsheet_url = st.secrets["connections"]["gsheets"]["spreadsheet"]
+except Exception:
+    st.error("Gagal membaca link spreadsheet dari Secrets (.streamlit/secrets.toml)")
+    spreadsheet_url = ""
+
+# Inisialisasi Koneksi untuk Membaca (Read-Only via Streamlit Connection)
 try:
     conn = st.connection("gsheets", type=GSheetsConnection)
 except Exception as e:
-    st.error("Gagal menyambungkan ke Google Sheets. Pastikan link di Secrets sudah benar.")
+    st.error("Gagal menyambungkan ke Google Sheets via Streamlit Connection.")
+
+# Fungsi Alternatif untuk MENULIS/MENYIMPAN Data Menggunakan gspread (Lebih Aman & Stabil)
+def append_to_gsheet(worksheet_name, row_data):
+    try:
+        # Menggunakan gspread publik dengan akses editor tanpa service account json khusus
+        gc = gspread.public_api()
+        sh = gc.open_by_url(spreadsheet_url)
+        worksheet = sh.worksheet(worksheet_name)
+        worksheet.append_row(row_data)
+        return True
+    except Exception as e:
+        # Fallback jika public API gspread terhambat: Menggunakan library gsheet update konvensional
+        return False
 
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
@@ -33,14 +54,12 @@ if not st.session_state.logged_in:
                     user_found = False
                     
                     if df_users is not None and not df_users.empty:
-                        # Samakan nama kolom menjadi huruf kecil sesuai Google Sheets Anda
                         df_users.columns = df_users.columns.str.strip().str.lower()
                         
                         if "username" in df_users.columns and "password" in df_users.columns:
                             df_users["username"] = df_users["username"].astype(str).str.strip().str.lower()
                             df_users["password"] = df_users["password"].astype(str).str.strip()
                             
-                            # Cek tanpa menggunakan hashing agar sesuai dengan data 'admin123' Anda
                             match = df_users[(df_users["username"] == user_input) & (df_users["password"] == pass_input)]
                             if not match.empty:
                                 user_found = True
@@ -53,7 +72,7 @@ if not st.session_state.logged_in:
                     else:
                         st.error("Username atau Password salah!")
                 except Exception as e:
-                    st.error("Gagal membaca database akun. Pastikan tab 'Users' sudah benar.")
+                    st.error("Gagal membaca database akun. Pastikan nama tab adalah 'Users'.")
             else:
                 st.warning("Semua kolom harus diisi!")
 
@@ -71,44 +90,33 @@ if not st.session_state.logged_in:
                     st.error("Konfirmasi password tidak cocok!")
                 else:
                     try:
+                        # Pengecekan duplikasi username sebelum didaftarkan
                         try:
                             df_users = conn.read(worksheet="Users", ttl=0)
+                            df_users.columns = df_users.columns.str.strip().str.lower()
+                            username_exists = new_user in df_users["username"].astype(str).values
                         except:
-                            df_users = pd.DataFrame(columns=["username", "password"])
-                        
-                        if df_users is None or df_users.empty:
-                            df_users = pd.DataFrame(columns=["username", "password"])
-                        
-                        # Pastikan nama kolom diubah menjadi huruf kecil (Sesuai image_aef746.png)
-                        df_users.columns = df_users.columns.str.strip().str.lower()
-                        
-                        if "username" not in df_users.columns:
-                            df_users["username"] = ""
-                        if "password" not in df_users.columns:
-                            df_users["password"] = ""
-                        
-                        username_exists = False
-                        if not df_users.empty:
-                            df_users["username"] = df_users["username"].astype(str).str.strip().str.lower()
-                            if new_user in df_users["username"].values:
-                                username_exists = True
+                            username_exists = False
                         
                         if username_exists:
                             st.error("Username sudah terpakai! Silakan gunakan nama lain.")
                         else:
-                            # Membuat baris baru dengan kolom huruf kecil agar sinkron
-                            new_row = pd.DataFrame([{
-                                "username": str(new_user), 
-                                "password": str(new_pass)
-                            }])
+                            # Tulis langsung baris baru [username, password] ke tab "Users"
+                            success = append_to_gsheet("Users", [str(new_user), str(new_pass)])
                             
-                            df_updated = pd.concat([df_users, new_row], ignore_index=True)
-                            df_updated = df_updated[["username", "password"]].dropna(subset=["username"])
-                            
-                            conn.update(worksheet="Users", data=df_updated)
-                            st.success("Akun berhasil didaftarkan! Silakan klik tab 'Login' di atas.")
+                            if success:
+                                st.success("Akun berhasil didaftarkan! Silakan klik tab 'Login' di atas.")
+                            else:
+                                # Jika gspread public diblokir cloud, gunakan fallback write standar DataFrame
+                                df_users = conn.read(worksheet="Users", ttl=0)
+                                df_users.columns = df_users.columns.str.strip().str.lower()
+                                new_row = pd.DataFrame([{"username": str(new_user), "password": str(new_pass)}])
+                                df_updated = pd.concat([df_users, new_row], ignore_index=True)
+                                conn.update(worksheet="Users", data=df_updated)
+                                st.success("Akun berhasil didaftarkan! (via Fallback)")
+                                
                     except Exception as e:
-                        st.error("Gagal menyimpan akun baru ke Google Sheets.")
+                        st.error("Gagal menyimpan akun baru. Pastikan link di Secrets Anda sudah diset ke 'Siapa saja sebagai Editor'.")
             else:
                 st.warning("Semua kolom wajib diisi!")
 
@@ -124,8 +132,7 @@ else:
     st.write("Catat pengeluaran pribadi Anda langsung ke cloud.")
     st.markdown("---")
     
-    # Form Input Data
-    nama_barang = st.text_input("Nama Barang / Kebutuhan", placeholder="Contoh: Nasi Goreng, Bensin")
+    nama_barang = st.text_input("Nama Barang / Kebutuhan", placeholder="Contoh: Bensin, Makan Siang")
     harga = st.number_input("Harga (Rp)", min_value=0, step=1000, value=0)
     
     if st.button("Simpan Pengeluaran", type="primary"):
@@ -137,41 +144,27 @@ else:
             sekarang = datetime.now()
             hari_indo = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"]
             hari = hari_indo[sekarang.weekday()]
-            tanggal = grandma = sekarang.strftime("%Y-%m-%d")
+            tanggal = sekarang.strftime("%Y-%m-%d")
             bulan_indo = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", 
                           "Juli", "Agustus", "September", "Oktober", "November", "Desember"]
             bulan = bulan_indo[sekarang.month - 1]
             
             try:
-                try:
-                    df_pengeluaran = conn.read(worksheet="Pengeluaran", ttl=0)
-                    if df_pengeluaran is not None:
-                        df_pengeluaran.columns = df_pengeluaran.columns.str.strip()
-                except:
-                    df_pengeluaran = pd.DataFrame(columns=["Username", "Hari", "Tanggal", "Bulan", "Nama Barang / Kebutuhan", "Harga (Rp)"])
+                # Simpan baris pengeluaran baru langsung ke Google Sheets tab "Pengeluaran"
+                row_pengeluaran = [str(st.session_state.username), str(hari), str(tanggal), str(bulan), str(nama_barang), int(harga)]
+                success = append_to_gsheet("Pengeluaran", row_pengeluaran)
                 
-                if df_pengeluaran is None or df_pengeluaran.empty:
-                    df_pengeluaran = pd.DataFrame(columns=["Username", "Hari", "Tanggal", "Bulan", "Nama Barang / Kebutuhan", "Harga (Rp)"])
-                
-                new_data = pd.DataFrame([{
-                    "Username": str(st.session_state.username),
-                    "Hari": str(hari),
-                    "Tanggal": str(tanggal),
-                    "Bulan": str(bulan),
-                    "Nama Barang / Kebutuhan": str(nama_barang),
-                    "Harga (Rp)": int(harga)
-                }])
-                
-                if df_pengeluaran.empty or "Username" not in df_pengeluaran.columns:
-                    df_updated = new_data
+                if success:
+                    st.success(f"Berhasil disimpan: {nama_barang}")
+                    st.rerun()
                 else:
-                    df_updated = pd.concat([df_pengeluaran, new_data], ignore_index=True)
-                
-                df_updated = df_updated[["Username", "Hari", "Tanggal", "Bulan", "Nama Barang / Kebutuhan", "Harga (Rp)"]].dropna()
-                conn.update(worksheet="Pengeluaran", data=df_updated)
-                
-                st.success(f"Berhasil disimpan: {nama_barang}")
-                st.rerun()
+                    # Fallback write jika diperlukan
+                    df_p = conn.read(worksheet="Pengeluaran", ttl=0)
+                    new_p = pd.DataFrame([{"Username": str(st.session_state.username), "Hari": hari, "Tanggal": tanggal, "Bulan": bulan, "Nama Barang / Kebutuhan": nama_barang, "Harga (Rp)": harga}])
+                    df_updated = pd.concat([df_p, new_p], ignore_index=True)
+                    conn.update(worksheet="Pengeluaran", data=df_updated)
+                    st.success(f"Berhasil disimpan: {nama_barang} (via Fallback)")
+                    st.rerun()
             except Exception as e:
                 st.error("Gagal menyimpan data pengeluaran ke Google Sheets.")
 
@@ -190,7 +183,6 @@ else:
                     df_all[k] = ""
                     
             df_all['index_asli'] = df_all.index
-            
             df_all_lower_user = df_all["Username"].astype(str).str.strip().str.lower()
             df_user = df_all[df_all_lower_user == str(st.session_state.username).lower()]
             
@@ -231,4 +223,4 @@ else:
         else:
             st.info("Database pengeluaran di Google Sheets masih kosong.")
     except Exception as e:
-        st.info("Sedang memproses penyelarasan tabel awal...")
+        st.info("Sedang menyelaraskan tabel awal...")
