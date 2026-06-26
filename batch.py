@@ -8,6 +8,32 @@ import json
 st.set_page_config(page_title="Harian Keuangan", page_icon="💰", layout="centered")
 
 # =========================================================================
+# 🎨 OPSI A: KUSTOMISASI LATAR BELAKANG WARNA SOLID (BIRU ELEGAN)
+# =========================================================================
+st.markdown(
+    """
+    <style>
+    /* Mengubah latar belakang halaman utama menjadi warna biru muda solid */
+    .stApp {
+        background-color: #e6f0fa;
+    }
+    
+    /* Mengubah latar belakang sidebar agar terlihat serasi dan kontras */
+    [data-testid="stSidebar"] {
+        background-color: #f0f4f8;
+    }
+    
+    /* Membuat sudut tombol lebih halus (radius 8px) */
+    div.stButton > button:first-child {
+        border-radius: 8px;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+# =========================================================================
+
+# =========================================================================
 # ⚙️ CONFIGURATION (SUDAH DIISI SESUAI URL ANDA)
 # =========================================================================
 SPREADSHEET_ID = "19WepkG5jBNasCwIqH3ii4Yg1Cskyf_zB41M7G_MAlo0"
