@@ -3,6 +3,7 @@ from datetime import datetime
 import pandas as pd
 import requests
 import json
+import io  # Tambahan untuk memproses file di memori sebelum diunduh
 
 # --- PENGATURAN HALAMAN WEB ---
 st.set_page_config(page_title="Harian Keuangan", page_icon="💰", layout="centered")
@@ -370,6 +371,30 @@ else:
             else:
                 st.error("Gagal menyimpan ke Google Sheets.")
     st.markdown("</div>", unsafe_allow_html=True)
+
+    # =========================================================================
+    # 📥 FITUR BARU: SIMPAN / EXPORT KE EXCEL
+    # =========================================================================
+    if df_all is not None and not df_all.empty and not df_user.empty:
+        # Menghapus kolom pembantu internal Streamlit agar file Excel bersih
+        df_excel = df_user.drop(columns=['baris_gsheet'], errors='ignore')
+        
+        # Mengubah susunan kolom agar lebih rapi saat dibuka di Excel
+        df_excel = df_excel[["Tanggal", "Hari", "Bulan", "Nama Barang / Kebutuhan", "Harga (Rp)", "Jenis"]]
+        
+        # Konversi dataframe ke bytes Excel di memori RAM menggunakan Openpyxl
+        buffer = io.BytesIO()
+        with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
+            df_excel.to_excel(writer, index=False, sheet_name='Laporan Keuangan')
+            
+        # Tampilkan Tombol Download Excel dengan style bawaan Streamlit
+        st.download_button(
+            label="📥 Simpan Laporan ke File Excel (.xlsx)",
+            data=buffer.getvalue(),
+            file_name=f"Laporan_Keuangan_{st.session_state.username}_{datetime.now().strftime('%Y%m%d')}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+        st.markdown("<br>", unsafe_allow_html=True)
 
     # --- RIWAYAT DATA BERGAYA KARTU ---
     st.markdown("<h3>📊 Riwayat & Kelola Pengeluaran</h3>", unsafe_allow_html=True)
