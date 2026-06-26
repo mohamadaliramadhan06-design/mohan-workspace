@@ -11,7 +11,7 @@ st.set_page_config(page_title="Harian Keuangan", page_icon="💰", layout="cente
 # ⚠️ ISI KEDUA KONFIGURASI DI BAWAH INI DENGAN BENAR
 # =========================================================================
 SPREADSHEET_ID = "19WepkG5jBNasCwIqH3ii4Yg1Cskyf_zB41M7G_MAlo0"
-API_URL = "https://script.google.com/macros/s/AKfycbynIv_fv7E4lvAuVirI28ADe6uW8kRzUFr_f2xidjGg-77KIwZRdUd_xR8KKmEMFTlJSA/exec"
+API_URL = "https://script.google.com/macros/s/AKfycbwr7TSnzbrdbK9qKVJUibcaZ4UfWfCbVm5BfExgbi6nqPbVGcrgelhdAa2RyzTN22hMQA/exec"
 # =========================================================================
 
 # Fungsi untuk Membaca Google Sheets
