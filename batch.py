@@ -1,5 +1,4 @@
 import streamlit as st
-from streamlit_gsheets import GSheetsConnection
 from datetime import datetime
 import pandas as pd
 import requests
@@ -9,15 +8,30 @@ import json
 st.set_page_config(page_title="Harian Keuangan", page_icon="💰", layout="centered")
 
 # =========================================================================
-# ⚠️ PENTING: Ganti teks di bawah ini dengan tautan Web App dari Apps Script Anda!
+# ⚠️ ISI KEDUA KONFIGURASI DI BAWAH INI DENGAN BENAR
+# =========================================================================
+# 1. Masukkan SPREADSHEET ID Anda (Ambil dari baris URL Google Sheets Anda)
+# Contoh URL: https://docs.google.com/spreadsheets/d/1A2B3C4D5E6Fxxxxxxxxx/edit
+# Ambil bagian kode acak di antara '/d/' dan '/edit'
+SPREADSHEET_ID = "19WepkG5jBNasCwIqH3ii4Yg1Cskyf_zB41M7G_MAlo0"
+
+# 2. Tautan Web App dari Apps Script Anda untuk menyimpan data
 API_URL = "https://script.google.com/macros/s/AKfycbynIv_fv7E4lvAuVirI28ADe6uW8kRzUFr_f2xidjGg-77KIwZRdUd_xR8KKmEMFTlJSA/exec"
 # =========================================================================
 
-# Inisialisasi Koneksi Membaca (Read) via Streamlit
-try:
-    conn = st.connection("gsheets", type=GSheetsConnection)
-except Exception as e:
-    st.error(f"Gagal menyambungkan ke Google Sheets. Detail: {e}")
+# Fungsi Pintar untuk Membaca Google Sheets Menggunakan Pandas (Bebas Error 400)
+def baca_dari_gsheet(nama_tab):
+    if SPREADSHEET_ID == "PASTE_ID_SPREADSHEET_ANDA_DISINI":
+        st.error("SPREADSHEET_ID belum diisi di dalam kode!")
+        return None
+    try:
+        # Menembak langsung ke fitur export CSV Google Sheets berdasarkan nama tab (sheet)
+        url = f"https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}/gviz/tq?tqx=out:csv&sheet={nama_tab}"
+        df = pd.read_csv(url)
+        return df
+    except Exception as e:
+        st.error(f"Gagal membaca tab '{nama_tab}'. Pastikan SPREADSHEET_ID benar. Detail: {e}")
+        return None
 
 # Fungsi Menyimpan Data via Google Apps Script
 def simpan_ke_gsheet(nama_tab, data_baris):
@@ -31,13 +45,13 @@ def simpan_ke_gsheet(nama_tab, data_baris):
         }
         response = requests.post(API_URL, data=json.dumps(payload), headers={"Content-Type": "application/json"})
         if response.status_code == 200:
-            st.cache_data.clear()  # Bersihkan cache Streamlit agar data langsung terupdate
             return True
         return False
     except Exception as e:
         st.error(f"Gagal menghubungi Apps Script: {e}")
         return False
 
+# Inisialisasi Session State Login
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
     st.session_state.username = ""
@@ -54,32 +68,29 @@ if not st.session_state.logged_in:
         
         if st.button("Masuk", type="primary"):
             if user_input and pass_input:
-                try:
-                    # Membaca data mentah worksheet Users
-                    df_users = conn.read(worksheet="Users")
-                    user_found = False
+                # Membaca data secara aman tanpa st-gsheets-connection
+                df_users = baca_dari_gsheet("Users")
+                user_found = False
+                
+                if df_users is not None and not df_users.empty:
+                    # Normalisasi nama kolom menjadi huruf kecil semua agar tidak sensitif
+                    df_users.columns = [str(col).strip().lower() for col in df_users.columns]
                     
-                    if df_users is not None and not df_users.empty:
-                        # Menyamakan nama kolom menjadi case-insensitive secara aman
-                        df_users.columns = [str(col).strip().lower() for col in df_users.columns]
+                    if "username" in df_users.columns and "password" in df_users.columns:
+                        df_users["username"] = df_users["username"].astype(str).str.strip().str.lower()
+                        df_users["password"] = df_users["password"].astype(str).str.strip()
                         
-                        if "username" in df_users.columns and "password" in df_users.columns:
-                            df_users["username"] = df_users["username"].astype(str).str.strip().str.lower()
-                            df_users["password"] = df_users["password"].astype(str).str.strip()
-                            
-                            match = df_users[(df_users["username"] == user_input) & (df_users["password"] == pass_input)]
-                            if not match.empty:
-                                user_found = True
-                    
-                    if user_found:
-                        st.session_state.logged_in = True
-                        st.session_state.username = user_input
-                        st.success(f"Selamat datang kembali, {user_input.capitalize()}!")
-                        st.rerun()
-                    else:
-                        st.error("Username atau Password salah!")
-                except Exception as e:
-                    st.error(f"Gagal membaca database 'Users'. Solusi: Pastikan nama kolom di Google Sheets Anda adalah 'Username' dan 'Password' (diawali huruf kapital). Detail error: {e}")
+                        match = df_users[(df_users["username"] == user_input) & (df_users["password"] == str(pass_input))]
+                        if not match.empty:
+                            user_found = True
+                
+                if user_found:
+                    st.session_state.logged_in = True
+                    st.session_state.username = user_input
+                    st.success(f"Selamat datang kembali, {user_input.capitalize()}!")
+                    st.rerun()
+                else:
+                    st.error("Username atau Password salah!")
             else:
                 st.warning("Semua kolom harus diisi!")
 
@@ -96,24 +107,22 @@ if not st.session_state.logged_in:
                 elif new_pass != confirm_pass:
                     st.error("Konfirmasi password tidak cocok!")
                 else:
-                    try:
-                        try:
-                            df_users = conn.read(worksheet="Users")
-                            df_users.columns = [str(col).strip().lower() for col in df_users.columns]
+                    df_users = baca_dari_gsheet("Users")
+                    username_exists = False
+                    
+                    if df_users is not None and not df_users.empty:
+                        df_users.columns = [str(col).strip().lower() for col in df_users.columns]
+                        if "username" in df_users.columns:
                             username_exists = new_user in df_users["username"].astype(str).values
-                        except Exception:
-                            username_exists = False
-                        
-                        if username_exists:
-                            st.error("Username sudah terpakai! Silakan gunakan nama lain.")
+                    
+                    if username_exists:
+                        st.error("Username sudah terpakai! Silakan gunakan nama lain.")
+                    else:
+                        if simpan_ke_gsheet("Users", [str(new_user), str(new_pass)]):
+                            st.success("Akun berhasil didaftarkan! Silakan login melalui tab 'Login'.")
+                            st.balloons()
                         else:
-                            if simpan_ke_gsheet("Users", [str(new_user), str(new_pass)]):
-                                st.success("Akun berhasil didaftarkan! Silakan login melalui tab 'Login'.")
-                                st.balloons()
-                            else:
-                                st.error("Gagal menyimpan ke Google Sheets. Periksa URL Apps Script Anda.")
-                    except Exception as e:
-                        st.error(f"Terjadi kendala sistem: {e}")
+                            st.error("Gagal menyimpan ke Google Sheets. Periksa URL Apps Script Anda.")
             else:
                 st.warning("Semua kolom wajib diisi!")
 
@@ -157,41 +166,37 @@ else:
     st.markdown("---")
     st.subheader("📊 Riwayat & Kelola Pengeluaran")
     
-    try:
-        df_all = conn.read(worksheet="Pengeluaran")
+    df_all = baca_dari_gsheet("Pengeluaran")
+    
+    if df_all is not None and not df_all.empty:
+        df_all.columns = [str(col).strip() for col in df_all.columns]
+        kolom_wajib = ["Username", "Hari", "Tanggal", "Bulan", "Nama Barang / Kebutuhan", "Harga (Rp)"]
         
-        if df_all is not None and not df_all.empty:
-            # Menormalisasi nama kolom tabel pengeluaran
-            df_all.columns = [str(col).strip() for col in df_all.columns]
-            kolom_wajib = ["Username", "Hari", "Tanggal", "Bulan", "Nama Barang / Kebutuhan", "Harga (Rp)"]
-            
-            for k in kolom_wajib:
-                if k not in df_all.columns:
-                    df_all[k] = ""
+        for k in kolom_wajib:
+            if k not in df_all.columns:
+                df_all[k] = ""
+                
+        df_all_lower_user = df_all["Username"].astype(str).str.strip().str.lower()
+        df_user = df_all[df_all_lower_user == str(st.session_state.username).lower()]
+        
+        if not df_user.empty:
+            total_user = 0
+            for idx, row in df_user.iterrows():
+                nama_b = str(row['Nama Barang / Kebutuhan'])
+                tgl_b = str(row['Tanggal'])
+                
+                try:
+                    val_harga = str(row['Harga (Rp)']).split('.')[0].split(',')[0]
+                    harga_b = int(''.join(filter(str.isdigit, val_harga)))
+                except:
+                    harga_b = 0
                     
-            df_all_lower_user = df_all["Username"].astype(str).str.strip().str.lower()
-            df_user = df_all[df_all_lower_user == str(st.session_state.username).lower()]
-            
-            if not df_user.empty:
-                total_user = 0
-                for idx, row in df_user.iterrows():
-                    nama_b = str(row['Nama Barang / Kebutuhan'])
-                    tgl_b = str(row['Tanggal'])
-                    
-                    try:
-                        val_harga = str(row['Harga (Rp)']).split('.')[0].split(',')[0]
-                        harga_b = int(''.join(filter(str.isdigit, val_harga)))
-                    except:
-                        harga_b = 0
+                total_user += harga_b
+                st.write(f"📅 **{tgl_b}** | {nama_b} — Rp {harga_b:,.0f}".replace(",", "."))
                         
-                    total_user += harga_b
-                    st.write(f"📅 **{tgl_b}** | {nama_b} — Rp {harga_b:,.0f}".replace(",", "."))
-                            
-                st.markdown("---")
-                st.metric(label="Total Pengeluaran Anda Saat Ini", value=f"Rp {total_user:,.0f}".replace(",", "."))
-            else:
-                st.info("Belum ada riwayat pengeluaran pada akun Anda.")
+            st.markdown("---")
+            st.metric(label="Total Pengeluaran Anda Saat Ini", value=f"Rp {total_user:,.0f}".replace(",", "."))
         else:
-            st.info("Database pengeluaran di Google Sheets masih kosong.")
-    except Exception as e:
-        st.error(f"Gagal memuat riwayat pengeluaran: {e}")
+            st.info("Belum ada riwayat pengeluaran pada akun Anda.")
+    else:
+        st.info("Database pengeluaran di Google Sheets masih kosong.")
