@@ -8,14 +8,35 @@ import json
 st.set_page_config(page_title="Harian Keuangan", page_icon="💰", layout="centered")
 
 # =========================================================================
-# 🎨 KUSTOMISASI DESAIN ANTARMUKA MODERN (CUSTOM CSS)
+# 🎨 KUSTOMISASI DESAIN ANTARMUKA MODERN DENGAN ANIMASI & TRANSISI
 # =========================================================================
 st.markdown(
     """
     <style>
-    /* Mengubah Latar Belakang Aplikasi */
+    /* Mengimpor Font Modern */
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+    
+    /* Mengubah Latar Belakang Aplikasi & Font Global */
     .stApp {
         background-color: #f3f7fa;
+        font-family: 'Poppins', sans-serif;
+    }
+    
+    /* 🎬 ANIMASI TRANSISI HALAMAN (FADE-IN EFFECT) */
+    @keyframes pageFadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(12px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    /* Menerapkan transisi masuk ke seluruh blok konten utama */
+    [data-testid="stVerticalBlock"] > div {
+        animation: pageFadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
     }
     
     /* Mengubah Desain Sidebar */
@@ -29,21 +50,27 @@ st.markdown(
         background-color: #ffffff;
         padding: 20px;
         border-radius: 12px;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.04), 0 2px 4px -1px rgba(0, 0, 0, 0.02);
         border-left: 5px solid #3b82f6;
         margin-bottom: 15px;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .metric-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
     }
     .metric-card.pemasukan { border-left-color: #10b981; }
     .metric-card.pengeluaran { border-left-color: #ef4444; }
     
     .metric-title {
-        font-size: 14px;
+        font-size: 11px;
         color: #64748b;
         font-weight: 600;
         margin-bottom: 5px;
+        letter-spacing: 0.5px;
     }
     .metric-value {
-        font-size: 24px;
+        font-size: 22px;
         color: #1e293b;
         font-weight: 700;
     }
@@ -53,17 +80,39 @@ st.markdown(
         background-color: #ffffff;
         padding: 25px;
         border-radius: 12px;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.03);
         margin-bottom: 25px;
         border: 1px solid #e2e8f0;
     }
     
-    /* Tombol Utama */
+    /* ⚡ TRANSISI INTERAKTIF PADA ELEMEN INPUT STREAMLIT */
+    div[data-baseweb="input"], div[data-baseweb="select"] {
+        transition: all 0.25s ease-in-out !important;
+    }
+    div[data-baseweb="input"]:focus-within {
+        border-color: #3b82f6 !important;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15) !important;
+    }
+    
+    /* 🎯 TRANSISI ANIMASI TOMBOL UTAMA (HOVER & ACTIVE EFFECT) */
     div.stButton > button:first-child {
         border-radius: 8px;
         font-weight: 600;
         width: 100%;
         padding: 10px;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    }
+    div.stButton > button:first-child:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+    }
+    div.stButton > button:first-child:active {
+        transform: translateY(1px);
+    }
+    
+    /* Transisi khusus tombol hapus sampah agar tidak ikut melebar */
+    div[data-testid="stHorizontalBlock"] div.stButton > button:first-child {
+        width: auto !important;
     }
     </style>
     """,
