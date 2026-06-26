@@ -153,11 +153,14 @@ else:
         df_all.columns = [str(col).strip() for col in df_all.columns]
         df_all['baris_gsheet'] = df_all.index + 2
         
-        # Tambahkan kolom 'Jenis' secara otomatis jika belum ada di database lama
-        kolom_wajib = ["Username", "Hari", "Tanggal", "Bulan", "Nama Barang / Kebutuhan", "Harga (Rp)", "Jenis"]
+        # Pengaman pembacaan kolom agar data lama tidak error
+        kolom_wajib = ["Username", "Hari", "Tanggal", "Bulan", "Nama Barang / Kebutuhan", "Harga (Rp)"]
         for k in kolom_wajib:
             if k not in df_all.columns:
-                df_all[k] = "Pengeluaran" # default jika data lama kosong
+                df_all[k] = ""
+                
+        if "Jenis" not in df_all.columns:
+            df_all["Jenis"] = "Pengeluaran"
                 
         df_all_lower_user = df_all["Username"].astype(str).str.strip().str.lower()
         df_user = df_all[df_all_lower_user == str(st.session_state.username).lower()]
@@ -180,7 +183,7 @@ else:
     # Hitung sisa saldo murni dari matematika cloud
     saldo_sekarang = total_pemasukan - total_pengeluaran
 
-    # 2. SIDEBAR (DIBERSIHKAN DARI INPUT MANUAL YANG MEMBINGUNGKAN)
+    # 2. SIDEBAR
     st.sidebar.title(f"👤 Akun: {st.session_state.username.capitalize()}")
     st.sidebar.markdown("---")
     
@@ -210,79 +213,5 @@ else:
     # --- FORM INPUT TRANSAKSI BARU ---
     st.subheader("📝 Tambah Catatan Baru")
     
-    # FITUR BARU: Memilih Jenis Transaksi
     jenis_transaksi = st.radio("Jenis Transaksi", ["📉 Pengeluaran", "📈 Pemasukan"], horizontal=True)
-    jenis_clean = "Pemasukan" if "Pemasukan" in jenis_transaksi else "Pengeluaran"
-    
-    tanggal_pilihan = st.date_input("Pilih Tanggal Transaksi", value=datetime.now().date())
-    
-    # Ubah placeholder dinamis biar user tidak bingung
-    if jenis_clean == "Pemasukan":
-        nama_barang = st.text_input("Sumber Pemasukan / Dana", placeholder="Contoh: Gaji Bulanan, Uang Saku, Pembagian Hasil")
-    else:
-        nama_barang = st.text_input("Nama Barang / Kebutuhan", placeholder="Contioh: Bensin, Makan Siang")
-        
-    harga = st.number_input("Nominal / Harga (Rp)", min_value=0, step=1000, value=0)
-    
-    if st.button("Simpan Transaksi", type="primary"):
-        if nama_barang == "":
-            st.error("Kolom keterangan/nama barang tidak boleh kosong!")
-        elif harga <= 0:
-            st.error("Nominal harus lebih dari 0!")
-        elif jenis_clean == "Pengeluaran" and harga > saldo_sekarang:
-            # Validasi pengaman agar tidak bocor minus jika belanja melebihi saldo saat ini
-            st.error(f"❌ Saldo tidak cukup! Sisa saldo Anda saat ini adalah Rp {saldo_sekarang:,.0f}".replace(",", "."))
-        else:
-            hari_indo = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"]
-            hari = hari_indo[tanggal_pilihan.weekday()]
-            tanggal_str = tanggal_pilihan.strftime("%Y-%m-%d")
-            
-            bulan_indo = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", 
-                          "Juli", "Agustus", "September", "Oktober", "November", "Desember"]
-            bulan = bulan_indo[tanggal_pilihan.month - 1]
-            
-            # Memasukkan Jenis Transaksi ke array data gsheet (menjadi kolom ke-7)
-            data_transaksi = [str(st.session_state.username), str(hari), str(tanggal_str), str(bulan), str(nama_barang), int(harga), str(jenis_clean)]
-            
-            if simpan_ke_gsheet("Pengeluaran", data_transaksi):
-                st.success(f"Berhasil disimpan sebagai {jenis_clean}: {nama_barang}")
-                st.rerun()
-            else:
-                st.error("Gagal menyimpan data ke cloud.")
-
-    # --- RIWAYAT & DAFTAR DATA ---
-    st.markdown("---")
-    st.subheader("📊 Riwayat & Kelola Transaksi")
-    
-    if df_all is not None and not df_all.empty and not df_user.empty:
-        for idx, row in df_user.iterrows():
-            nama_b = str(row['Nama Barang / Kebutuhan'])
-            tgl_b = str(row['Tanggal'])
-            baris_target = row['baris_gsheet']
-            j_tx = str(row['Jenis'])
-            
-            try:
-                val_harga = str(row['Harga (Rp)']).split('.')[0].split(',')[0]
-                harga_b = int(''.join(filter(str.isdigit, val_harga)))
-            except:
-                harga_b = 0
-                
-            # Berikan simbol warna pembeda di riwayat list
-            simbol = "🟢 [Masuk]" if j_tx == "Pemasukan" else "🔴 [Keluar]"
-                
-            col_info, col_del = st.columns([5, 1])
-            with col_info:
-                st.write(f"📅 **{tgl_b}** | {simbol} {nama_b} — Rp {harga_b:,.0f}".replace(",", "."))
-            with col_del:
-                if st.button("🗑️ Hapus", key=f"del_{baris_target}"):
-                    if hapus_dari_gsheet("Pengeluaran", baris_target):
-                        st.success("Terhapus!")
-                        st.rerun()
-                    else:
-                        st.error("Gagal!")
-        st.markdown("---")
-    else:
-        if df_all is None or df_all.empty:
-            st.info("Database transaksi di Google Sheets masih kosong.")
-        else:
-            st.info("Belum ada riwayat transaksi pada akun Anda.")
+    jenis
