@@ -261,3 +261,113 @@ else:
     col_m1, col_m2 = st.columns(2)
     with col_m1:
         st.markdown(
+            f"""
+            <div class='metric-card pemasukan'>
+                <div class='metric-title'>📈 TOTAL UANG MASUK (PEMASUKAN)</div>
+                <div class='metric-value' style='color:#10b981;'>{pemasukan_format}</div>
+            </div>
+            """, unsafe_allow_html=True
+        )
+    with col_m2:
+        st.markdown(
+            f"""
+            <div class='metric-card pengeluaran'>
+                <div class='metric-title'>📉 TOTAL UANG KELUAR (PENGELUARAN)</div>
+                <div class='metric-value' style='color:#ef4444;'>{pengeluaran_format}</div>
+            </div>
+            """, unsafe_allow_html=True
+        )
+        
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    # --- FORM INPUT TRANSAKSI BARU ---
+    st.markdown("<div class='form-container'>", unsafe_allow_html=True)
+    st.subheader("📝 Tambah Catatan Baru")
+    
+    jenis_transaksi = st.radio("Jenis Transaksi", ["📉 Pengeluaran", "📈 Pemasukan"], horizontal=True)
+    jenis_clean = "Pemasukan" if "Pemasukan" in jenis_transaksi else "Pengeluaran"
+    
+    col_f1, col_f2 = st.columns(2)
+    with col_f1:
+        tanggal_pilihan = st.date_input("Pilih Tanggal Transaksi", value=datetime.now().date())
+    with col_f2:
+        harga = st.number_input("Harga / Nominal (Rp)", min_value=0, step=1000, value=0)
+        
+    nama_barang = st.text_input("Nama Barang / Kebutuhan / Sumber Dana", placeholder="Contoh: Bensin, Makan Siang, Uang Saku")
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    if st.button("Simpan Transaksi", type="primary"):
+        if nama_barang == "":
+            st.error("Keterangan transaksi tidak boleh kosong!")
+        elif harga <= 0:
+            st.error("Nominal transaksi harus lebih besar dari Rp 0!")
+        elif jenis_clean == "Pengeluaran" and harga > saldo_sekarang:
+            st.error(f"❌ Saldo tidak mencukupi! Sisa saldo Anda adalah {saldo_format}")
+        else:
+            # Hitung hari dan bulan otomatis dalam bahasa Indonesia
+            hari_indo = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"]
+            hari = hari_indo[tanggal_pilihan.weekday()]
+            tanggal_str = tanggal_pilihan.strftime("%Y-%m-%d")
+            
+            bulan_indo = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", 
+                          "Juli", "Agustus", "September", "Oktober", "November", "Desember"]
+            bulan = bulan_indo[tanggal_pilihan.month - 1]
+            
+            data_transaksi = [str(st.session_state.username), str(hari), str(tanggal_str), str(bulan), str(nama_barang), int(harga), str(jenis_clean)]
+            
+            if simpan_ke_gsheet("Pengeluaran", data_transaksi):
+                st.success("Data berhasil disimpan ke cloud!")
+                st.rerun()
+            else:
+                st.error("Gagal menyimpan ke Google Sheets.")
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    # --- RIWAYAT DATA BERGAYA KARTU ---
+    st.markdown("<h3>📊 Riwayat & Kelola Pengeluaran</h3>", unsafe_allow_html=True)
+    
+    if df_all is not None and not df_all.empty and not df_user.empty:
+        # Menampilkan data mulai dari yang paling baru dimasukkan (di-reverse)
+        for idx, row in df_user.iloc[::-1].iterrows():
+            nama_b = str(row['Nama Barang / Kebutuhan'])
+            tgl_b = str(row['Tanggal'])
+            baris_target = row['baris_gsheet']
+            j_tx = str(row['Jenis'])
+            
+            try:
+                val_harga = str(row['Harga (Rp)']).split('.')[0].split(',')[0]
+                harga_b = int(''.join(filter(str.isdigit, val_harga)))
+            except:
+                harga_b = 0
+                
+            border_color = "#10b981" if j_tx == "Pemasukan" else "#ef4444"
+            bg_badge = "#e6f4ea" if j_tx == "Pemasukan" else "#fce8e6"
+            label_badge = "MASUK" if j_tx == "Pemasukan" else "KELUAR"
+            tanda_minus = " " if j_tx == "Pemasukan" else "-"
+            
+            # Format harga ke IDR rupiah (Titik sebagai ribuan)
+            harga_format = f"{tanda_minus}Rp {harga_b:,.0f}".replace(",", ".")
+            
+            col_box, col_action = st.columns([6, 1])
+            with col_box:
+                st.markdown(
+                    f"""
+                    <div style='background-color:#ffffff; padding:12px 18px; border-radius:10px; border-left: 4px solid {border_color}; box-shadow: 0 2px 4px rgba(0,0,0,0.02); display:flex; justify-content:space-between; align-items:center;'>
+                        <div>
+                            <span style='font-size:11px; background-color:{bg_badge}; color:{border_color}; padding:2px 8px; border-radius:12px; font-weight:700;'>{label_badge}</span>
+                            <span style='font-size:12px; color:#64748b; margin-left:8px;'>📅 {tgl_b}</span>
+                            <div style='font-weight:600; color:#1e293b; margin-top:4px; font-size:15px;'>{nama_b}</div>
+                        </div>
+                        <div style='font-size:16px; font-weight:700; color:{border_color};'>
+                            {harga_format}
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True
+                )
+            with col_action:
+                st.markdown("<div style='margin-top: 8px;'>", unsafe_allow_html=True)
+                if st.button("🗑️", key=f"del_{baris_target}"):
+                    if hapus_dari_gsheet("Pengeluaran", baris_target):
+                        st.rerun()
+                st.markdown("</div>", unsafe_allow_html=True)
+    else:
+        st.info("Belum ada riwayat pengeluaran pada akun Anda.")
