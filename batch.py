@@ -9,7 +9,7 @@ import json
 st.set_page_config(page_title="Harian Keuangan", page_icon="💰", layout="centered")
 
 # =========================================================================
-# PENTING: Ganti teks di bawah ini dengan URL Web App dari Google Apps Script Anda
+# PENTING: Pastikan URL Web App dari Google Apps Script Anda sudah benar di bawah ini
 API_URL = "https://script.google.com/macros/s/AKfycbynIv_fv7E4lvAuVirI28ADe6uW8kRzUFr_f2xidjGg-77KIwZRdUd_xR8KKmEMFTlJSA/exec"
 # =========================================================================
 
@@ -53,6 +53,7 @@ if not st.session_state.logged_in:
         if st.button("Masuk", type="primary"):
             if user_input and pass_input:
                 try:
+                    # UPDATE: Ditambahkan ttl=0 untuk bypass cache agar akun baru langsung terbaca
                     df_users = conn.read(worksheet="Users", ttl=0)
                     user_found = False
                     
