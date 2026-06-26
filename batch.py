@@ -13,17 +13,12 @@ st.set_page_config(page_title="Harian Keuangan", page_icon="💰", layout="cente
 st.markdown(
     """
     <style>
-    /* Mengubah latar belakang halaman utama menjadi warna biru muda solid */
     .stApp {
         background-color: #e6f0fa;
     }
-    
-    /* Mengubah latar belakang sidebar agar terlihat serasi dan kontras */
     [data-testid="stSidebar"] {
         background-color: #f0f4f8;
     }
-    
-    /* Membuat sudut tombol lebih halus (radius 8px) */
     div.stButton > button:first-child {
         border-radius: 8px;
     }
@@ -31,14 +26,12 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
-# =========================================================================
 
 # =========================================================================
-# ⚙️ CONFIGURATION (SUDAH DIISI SESUAI URL ANDA)
+# ⚙️ CONFIGURATION
 # =========================================================================
 SPREADSHEET_ID = "19WepkG5jBNasCwIqH3ii4Yg1Cskyf_zB41M7G_MAlo0"
 API_URL = "https://script.google.com/macros/s/AKfycbwr7TSnzbrdbK9qKVJUibcaZ4UfWfCbVm5BfExgbi6nqPbVGcrgelhdAa2RyzTN22hMQA/exec"
-# =========================================================================
 
 # Fungsi untuk Membaca Google Sheets
 def baca_dari_gsheet(nama_tab):
@@ -63,7 +56,7 @@ def simpan_ke_gsheet(nama_tab, data_baris):
     except Exception:
         return False
 
-# Fungsi Menghapus Data Berdasarkan Nomor Baris Asli di Google Sheets
+# Fungsi Menghapus Data
 def hapus_dari_gsheet(nama_tab, nomor_baris_gsheet):
     try:
         payload = {
@@ -76,7 +69,7 @@ def hapus_dari_gsheet(nama_tab, nomor_baris_gsheet):
     except Exception:
         return False
 
-# --- FITUR ANTI-LOGOUT (SESSION REMEMBER) ---
+# --- SESSION STATE ---
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
     st.session_state.username = ""
@@ -148,21 +141,23 @@ if not st.session_state.logged_in:
             else:
                 st.warning("Semua kolom wajib diisi!")
 
-# --- HALAMAN SETELAH BERHASIL LOGIN ---
+# --- HALAMAN SETELAH LOGIN ---
 else:
-    # 1. AMBIL DATA DAN HITUNG TOTAL PENGELUARAN LEBIH AWAL
+    # 1. AMBIL DATA DAN HITUNG PEMASUKAN & PENGELUARAN SECARA REAL-TIME
     df_all = baca_dari_gsheet("Pengeluaran")
-    total_user = 0
-    df_user = pd.DataFrame() # Inisialisasi dataframe kosong untuk user aktif
+    total_pengeluaran = 0
+    total_pemasukan = 0
+    df_user = pd.DataFrame()
     
     if df_all is not None and not df_all.empty:
         df_all.columns = [str(col).strip() for col in df_all.columns]
         df_all['baris_gsheet'] = df_all.index + 2
         
-        kolom_wajib = ["Username", "Hari", "Tanggal", "Bulan", "Nama Barang / Kebutuhan", "Harga (Rp)"]
+        # Tambahkan kolom 'Jenis' secara otomatis jika belum ada di database lama
+        kolom_wajib = ["Username", "Hari", "Tanggal", "Bulan", "Nama Barang / Kebutuhan", "Harga (Rp)", "Jenis"]
         for k in kolom_wajib:
             if k not in df_all.columns:
-                df_all[k] = ""
+                df_all[k] = "Pengeluaran" # default jika data lama kosong
                 
         df_all_lower_user = df_all["Username"].astype(str).str.strip().str.lower()
         df_user = df_all[df_all_lower_user == str(st.session_state.username).lower()]
@@ -174,24 +169,23 @@ else:
                     harga_b = int(''.join(filter(str.isdigit, val_harga)))
                 except:
                     harga_b = 0
-                total_user += harga_b
+                
+                # Cek jenis transaksi
+                jenis_tx = str(row['Jenis']).strip()
+                if jenis_tx == "Pemasukan":
+                    total_pemasukan += harga_b
+                else:
+                    total_pengeluaran += harga_b
 
-    # 2. SIDEBAR (PENGATURAN SALDO & AKUN)
+    # Hitung sisa saldo murni dari matematika cloud
+    saldo_sekarang = total_pemasukan - total_pengeluaran
+
+    # 2. SIDEBAR (DIBERSIHKAN DARI INPUT MANUAL YANG MEMBINGUNGKAN)
     st.sidebar.title(f"👤 Akun: {st.session_state.username.capitalize()}")
-    
     st.sidebar.markdown("---")
-    st.sidebar.subheader("💰 Pengaturan Saldo")
-    # Menggunakan number_input agar user bisa mengatur saldo awalnya sendiri secara fleksibel
-    saldo_awal = st.sidebar.number_input(
-        "Masukkan Saldo Awal Anda (Rp)", 
-        min_value=0, 
-        value=1000000, # Nilai default awal (1 Juta)
-        step=50000,
-        key="saldo_awal_user"
-    )
     
-    # Menghitung sisa saldo berjalan
-    saldo_sekarang = saldo_awal - total_user
+    # Tampilkan info ringkas saldo di sidebar agar sinkron dengan tengah
+    st.sidebar.metric(label="💰 Sisa Saldo Anda", value=f"Rp {saldo_sekarang:,.0f}".replace(",", "."))
     
     st.sidebar.markdown("---")
     if st.sidebar.button("🚪 Logout/Keluar Akun"):
@@ -201,30 +195,42 @@ else:
         
     # 3. HALAMAN UTAMA
     st.title(f"💰 Harian Keuangan: {st.session_state.username.capitalize()}")
-    st.write("Catat pengeluaran pribadi Anda langsung ke cloud.")
+    st.write("Catat keuangan pribadi Anda langsung ke cloud.")
     st.markdown("---")
     
-    # Menampilkan Dashboard Indikator Keuangan Ringkas (Sisa Saldo & Pengeluaran)
+    # Dashboard Utama yang Selalu Sinkron dan Akurat
     col_m1, col_m2 = st.columns(2)
     with col_m1:
-        st.metric(label="💰 Sisa Saldo Saat Ini", value=f"Rp {saldo_sekarang:,.0f}".replace(",", "."))
+        st.metric(label="📈 Total Uang Masuk (Pemasukan)", value=f"Rp {total_pemasukan:,.0f}".replace(",", "."))
     with col_m2:
-        st.metric(label="📊 Total Pengeluaran Anda", value=f"Rp {total_user:,.0f}".replace(",", "."))
+        st.metric(label="📉 Total Uang Keluar (Pengeluaran)", value=f"Rp {total_pengeluaran:,.0f}".replace(",", "."))
         
     st.markdown("---")
     
-    # --- FORM INPUT PENGELUARAN ---
-    tanggal_pilihan = st.date_input("Pilih Tanggal Pengeluaran", value=datetime.now().date())
-    nama_barang = st.text_input("Nama Barang / Kebutuhan", placeholder="Contoh: Bensin, Makan Siang")
-    harga = st.number_input("Harga (Rp)", min_value=0, step=1000, value=0)
+    # --- FORM INPUT TRANSAKSI BARU ---
+    st.subheader("📝 Tambah Catatan Baru")
     
-    if st.button("Simpan Pengeluaran", type="primary"):
+    # FITUR BARU: Memilih Jenis Transaksi
+    jenis_transaksi = st.radio("Jenis Transaksi", ["📉 Pengeluaran", "📈 Pemasukan"], horizontal=True)
+    jenis_clean = "Pemasukan" if "Pemasukan" in jenis_transaksi else "Pengeluaran"
+    
+    tanggal_pilihan = st.date_input("Pilih Tanggal Transaksi", value=datetime.now().date())
+    
+    # Ubah placeholder dinamis biar user tidak bingung
+    if jenis_clean == "Pemasukan":
+        nama_barang = st.text_input("Sumber Pemasukan / Dana", placeholder="Contoh: Gaji Bulanan, Uang Saku, Pembagian Hasil")
+    else:
+        nama_barang = st.text_input("Nama Barang / Kebutuhan", placeholder="Contioh: Bensin, Makan Siang")
+        
+    harga = st.number_input("Nominal / Harga (Rp)", min_value=0, step=1000, value=0)
+    
+    if st.button("Simpan Transaksi", type="primary"):
         if nama_barang == "":
-            st.error("Nama barang tidak boleh kosong!")
+            st.error("Kolom keterangan/nama barang tidak boleh kosong!")
         elif harga <= 0:
-            st.error("Harga harus lebih dari 0!")
-        elif harga > saldo_sekarang:
-            # VALIDASI BARU: Mencegah simpan jika harga barang melebihi sisa saldo berjalan
+            st.error("Nominal harus lebih dari 0!")
+        elif jenis_clean == "Pengeluaran" and harga > saldo_sekarang:
+            # Validasi pengaman agar tidak bocor minus jika belanja melebihi saldo saat ini
             st.error(f"❌ Saldo tidak cukup! Sisa saldo Anda saat ini adalah Rp {saldo_sekarang:,.0f}".replace(",", "."))
         else:
             hari_indo = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"]
@@ -235,23 +241,25 @@ else:
                           "Juli", "Agustus", "September", "Oktober", "November", "Desember"]
             bulan = bulan_indo[tanggal_pilihan.month - 1]
             
-            data_pengeluaran = [str(st.session_state.username), str(hari), str(tanggal_str), str(bulan), str(nama_barang), int(harga)]
+            # Memasukkan Jenis Transaksi ke array data gsheet (menjadi kolom ke-7)
+            data_transaksi = [str(st.session_state.username), str(hari), str(tanggal_str), str(bulan), str(nama_barang), int(harga), str(jenis_clean)]
             
-            if simpan_ke_gsheet("Pengeluaran", data_pengeluaran):
-                st.success(f"Berhasil disimpan: {nama_barang}")
+            if simpan_ke_gsheet("Pengeluaran", data_transaksi):
+                st.success(f"Berhasil disimpan sebagai {jenis_clean}: {nama_barang}")
                 st.rerun()
             else:
-                st.error("Gagal menyimpan data pengeluaran.")
+                st.error("Gagal menyimpan data ke cloud.")
 
     # --- RIWAYAT & DAFTAR DATA ---
     st.markdown("---")
-    st.subheader("📊 Riwayat & Kelola Pengeluaran")
+    st.subheader("📊 Riwayat & Kelola Transaksi")
     
     if df_all is not None and not df_all.empty and not df_user.empty:
         for idx, row in df_user.iterrows():
             nama_b = str(row['Nama Barang / Kebutuhan'])
             tgl_b = str(row['Tanggal'])
             baris_target = row['baris_gsheet']
+            j_tx = str(row['Jenis'])
             
             try:
                 val_harga = str(row['Harga (Rp)']).split('.')[0].split(',')[0]
@@ -259,9 +267,12 @@ else:
             except:
                 harga_b = 0
                 
+            # Berikan simbol warna pembeda di riwayat list
+            simbol = "🟢 [Masuk]" if j_tx == "Pemasukan" else "🔴 [Keluar]"
+                
             col_info, col_del = st.columns([5, 1])
             with col_info:
-                st.write(f"📅 **{tgl_b}** | {nama_b} — Rp {harga_b:,.0f}".replace(",", "."))
+                st.write(f"📅 **{tgl_b}** | {simbol} {nama_b} — Rp {harga_b:,.0f}".replace(",", "."))
             with col_del:
                 if st.button("🗑️ Hapus", key=f"del_{baris_target}"):
                     if hapus_dari_gsheet("Pengeluaran", baris_target):
@@ -272,6 +283,6 @@ else:
         st.markdown("---")
     else:
         if df_all is None or df_all.empty:
-            st.info("Database pengeluaran di Google Sheets masih kosong.")
+            st.info("Database transaksi di Google Sheets masih kosong.")
         else:
-            st.info("Belum ada riwayat pengeluaran pada akun Anda.")
+            st.info("Belum ada riwayat transaksi pada akun Anda.")
