@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Harian Keuangan</title>
+    <!-- Tailwind CSS untuk Antarmuka Modern -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <!-- Google Font Poppins -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #f3f7fa;
+            overscroll-behavior-y: contain;
+        }
+        /* 🎬 ANIMASI TRANSISI HALAMAN (FADE-IN EFFECT) */
+        @keyframes pageFadeIn {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .fade-in {
+            animation: pageFadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+    </style>
+</head>
+<body class="text-slate-800 min-h-screen">
+
+    <!-- ========================================== -->
+    <!-- 🔐 HALAMAN SEBELUM LOGIN / AKSES SISTEM   -->
+    <!-- ========================================== -->
+    <div id="authPage" class="max-w-md mx-auto mt-16 p-4 fade-in">
+        <h2 class="text-center text-2xl font-bold mb-6 text-slate-800">🔐 Akses Sistem Keuangan</h2>
+        
+        <!-- Tab Menu -->
+        <div class="flex border-b border-slate-200 mb-6 bg-white rounded-t-xl overflow-hidden shadow-xs">
+            <button onclick="switchTab('login')" id="tabLoginBtn" class="w-1/2 py-3 font-semibold text-center bg-white border-b-2 border-blue-500 text-blue-600 transition cursor-pointer">🔑 Login</button>
+            <button onclick="switchTab('register')" id="tabRegBtn" class="w-1/2 py-3 font-semibold text-center bg-slate-50 text-slate-500 border-b-2 border-transparent hover:bg-slate-100 transition cursor-pointer">📝 Daftar Akun Baru</button>
+        </div>
+
+        <!-- Form Login -->
+        <div id="formLogin" class="bg-white p-6 rounded-b-xl shadow-xs space-y-4">
+            <h3 class="text-lg font-bold text-slate-700">Silakan Login / Masuk</h3>
+            <div>
+                <label class="block text-sm font-medium text-slate-600 mb-1">Username</label>
+                <input type="text" id="loginUser" class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-600 mb-1">Password</label>
+                <input type="password" id="loginPass" class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+            </div>
+            <button onclick="prosesLogin()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 rounded-lg shadow-sm transition cursor-pointer">Masuk Ke Aplikasi</button>
+        </div>
+
+        <!-- Form Register -->
+        <div id="formRegister" class="bg-white p-6 rounded-b-xl shadow-xs space-y-4 hidden">
+            <h3 class="text-lg font-bold text-slate-700">Buat Akun Baru</h3>
+            <div>
+                <label class="block text-sm font-medium text-slate-600 mb-1">Buat Username</label>
+                <input type="text" id="regUser" class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-600 mb-1">Buat Password</label>
+                <input type="password" id="regPass" class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-600 mb-1">Konfirmasi Password</label>
+                <input type="password" id="regPassConf" class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+            </div>
+            <button onclick="prosesRegister()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2 rounded-lg shadow-sm transition cursor-pointer">Daftar Sekarang</button>
+        </div>
+    </div>
+
+
+    <!-- ========================================== -->
+    <!-- 💰 HALAMAN UTAMA / DASHBOARD SETELAH LOGIN -->
+    <!-- ========================================== -->
+    <div id="mainPage" class="flex flex-col md:flex-row min-h-screen hidden">
+        
+        <!-- 👤 SIDEBAR -->
+        <aside class="w-full md:w-64 bg-white border-r border-slate-200 p-6 flex flex-col justify-between shadow-xs">
+            <div>
+                <h3 id="sidebarUser" class="text-center font-bold text-lg text-slate-700 border-b border-slate-100 pb-4 mb-6">👤 Akun: -</h3>
+                
+                <!-- Sisa Saldo Box -->
+                <div class="bg-white p-4 rounded-xl shadow-xs border-l-5 border-blue-500 hover:-translate-y-0.5 transition duration-300">
+                    <div class="text-[11px] font-bold text-slate-400 tracking-wide mb-1">💰 SISA SALDO ANDA</div>
+                    <div id="saldoFormat" class="text-xl font-bold text-slate-800">Rp 0</div>
+                </div>
+            </div>
+            
+            <button onclick="prosesLogout()" class="mt-8 w-full border border-slate-200 hover:bg-slate-50 text-slate-600 font-semibold py-2 rounded-lg transition cursor-pointer">🚪 Logout/Keluar Akun</button>
+        </aside>
+
+        <!-- 📊 KONTEN UTAMA -->
+        <main class="flex-1 p-6 max-w-4xl mx-auto w-full fade-in">
+            <h2 id="mainTitle" class="text-2xl font-bold text-slate-800">💰 Harian Keuangan: -</h2>
+            <p class="text-sm text-slate-400 mb-6">Catat keuangan pribadi Anda langsung secara terstruktur.</p>
+            <hr class="border-slate-200 my-4">
+
+            <!-- Grid Kartu Ringkasan (Uang Masuk / Keluar) -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <div class="bg-white p-5 rounded-xl shadow-xs border-l-5 border-emerald-500 hover:-translate-y-0.5 transition duration-300">
+                    <div class="text-[11px] font-bold text-slate-400 tracking-wide mb-1">📈 TOTAL UANG MASUK (PEMASUKAN)</div>
+                    <div id="totalPemasukan" class="text-2xl font-bold text-emerald-500">Rp 0</div>
+                </div>
+                <div class="bg-white p-5 rounded-xl shadow-xs border-l-5 border-ef4444 border-red-500 hover:-translate-y-0.5 transition duration-300">
+                    <div class="text-[11px] font-bold text-slate-400 tracking-wide mb-1">📉 TOTAL UANG KELUAR (PENGELUARAN)</div>
+                    <div id="totalPengeluaran" class="text-2xl font-bold text-red-500">Rp 0</div>
+                </div>
+            </div>
+
+            <!-- Form Tambah Catatan Baru -->
+            <div class="bg-white p-6 rounded-xl shadow-xs border border-slate-100 mb-6 space-y-4">
+                <h3 class="text-lg font-bold text-slate-700">📝 Tambah Catatan Baru</h3>
+                
+                <!-- Radio Jenis Transaksi -->
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-2">Jenis Transaksi</label>
+                    <div class="flex gap-4">
+                        <label class="inline-flex items-center cursor-pointer">
+                            <input type="radio" name="jenisClean" value="Pengeluaran" checked class="w-4 h-4 text-red-600 focus:ring-red-500">
+                            <span class="ml-2 text-sm text-slate-600">📉 Pengeluaran</span>
+                        </label>
+                        <label class="inline-flex items-center cursor-pointer">
+                            <input type="radio" name="jenisClean" value="Pemasukan" class="w-4 h-4 text-emerald-600 focus:ring-emerald-500">
+                            <span class="ml-2 text-sm text-slate-600">📈 Pemasukan</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1">Pilih Tanggal Transaksi</label>
+                        <input type="date" id="txTanggal" class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1">Harga / Nominal (Rp)</label>
+                        <input type="number" id="txHarga" value="0" min="0" step="1000" class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-1">Nama Barang / Kebutuhan / Sumber Dana</label>
+                    <input type="text" id="txNama" placeholder="Contoh: Bensin, Makan Siang, Uang Saku" class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+                </div>
+
+                <button onclick="simpanTransaksi()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg shadow-md transition transform active:translate-y-0.5 cursor-pointer">Simpan Transaksi</button>
+            </div>
+
+            <!-- Fitur Export Excel -->
+            <div class="mb-6">
+                <button onclick="exportToCSV()" class="w-full md:w-auto bg-slate-100 border border-slate-200 hover:bg-slate-200 text-slate-700 font-semibold py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition cursor-pointer">
+                    📥 Simpan Laporan ke File Excel (.csv)
+                </button>
+            </div>
+
+            <!-- Riwayat Transaksi -->
+            <h3 class="text-lg font-bold text-slate-700 mb-4">📊 Riwayat & Kelola Pengeluaran</h3>
+            <div id="riwayatList" class="space-y-3">
+                <!-- Data Riwayat Masuk Sini -->
+            </div>
+        </main>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- ⚙️ LOGIK SISTEM / JAVASCRIPT               -->
+    <!-- ========================================== -->
+    <script>
+        let currentUser = "";
+
+        document.addEventListener("DOMContentLoaded", () => {
+            // Pasang tanggal hari ini sebagai default di input form
+            document.getElementById('txTanggal').value = new Date().toISOString().split('T')[0];
+            cekSession();
+        });
+
+        // --- SISTEM TAB INTERFACES ---
+        function switchTab(type) {
+            const tabLoginBtn = document.getElementById('tabLoginBtn');
+            const tabRegBtn = document.getElementById('tabRegBtn');
+            const formLogin = document.getElementById('formLogin');
+            const formRegister = document.getElementById('formRegister');
+
+            if (type === 'login') {
+                tabLoginBtn.className = "w-1/2 py-3 font-semibold text-center bg-white border-b-2 border-blue-500 text-blue-600 transition cursor-pointer";
+                tabRegBtn.className = "w-1/2 py-3 font-semibold text-center bg-slate-50 text-slate-500 border-b-2 border-transparent hover:bg-slate-100 transition cursor-pointer";
+                formLogin.classList.remove('hidden');
+                formRegister.classList.add('hidden');
+            } else {
+                tabRegBtn.className = "w-1/2 py-3 font-semibold text-center bg-white border-b-2 border-blue-500 text-blue-600 transition cursor-pointer";
+                tabLoginBtn.className = "w-1/2 py-3 font-semibold text-center bg-slate-50 text-slate-500 border-b-2 border-transparent hover:bg-slate-100 transition cursor-pointer";
+                formRegister.classList.remove('hidden');
+                formLogin.classList.add('hidden');
+            }
+        }
+
+        // --- SISTEM AUTENTIKASI ---
+        function prosesRegister() {
+            const user = document.getElementById('regUser').value.trim().toLowerCase();
+            const pass = document.getElementById('regPass').value;
+            const conf = document.getElementById('regPassConf').value;
+
+            if(!user || !pass || !conf) return alert("Semua kolom wajib diisi!");
+            if(user.includes(" ")) return alert("Username tidak boleh mengandung spasi!");
+            if(pass !== conf) return alert("Konfirmasi password tidak cocok!");
+
+            let users = JSON.parse(localStorage.getItem("app_users")) || [];
+            if(users.some(u => u.username === user)) return alert("Username sudah terpakai!");
+
+            users.push({ username: user, password: pass });
+            localStorage.setItem("app_users", JSON.stringify(users));
+            alert("Akun berhasil didaftarkan! Silakan login.");
+            switchTab('login');
+        }
+
+        function prosesLogin() {
+            const user = document.getElementById('loginUser').value.trim().toLowerCase();
+            const pass = document.getElementById('loginPass').value;
+
+            if(!user || !pass) return alert("Semua kolom harus diisi!");
+
+            let users = JSON.parse(localStorage.getItem("app_users")) || [];
+            let match = users.find(u => u.username === user && u.password === pass);
+
+            if(match) {
+                currentUser = user;
+                localStorage.setItem("app_current_session", user);
+                alert(`Selamat datang kembali, ${user.charAt(0).toUpperCase() + user.slice(1)}!`);
+                renderDashboard();
+            } else {
+                alert("Username atau Password salah!");
+            }
+        }
+
+        function cekSession() {
+            let session = localStorage.getItem("app_current_session");
+            if(session) {
+                currentUser = session;
+                renderDashboard();
+            }
+        }
+
+        function prosesLogout() {
+            localStorage.removeItem("app_current_session");
+            currentUser = "";
+            document.getElementById('mainPage').classList.add('hidden');
+            document.getElementById('authPage').classList.remove('hidden');
+        }
+
+        // --- MANAJEMEN DASHBOARD & PERHITUNGAN DATA MURNI ---
+        function renderDashboard() {
+            document.getElementById('authPage').classList.add('hidden');
+            document.getElementById('mainPage').classList.remove('hidden');
+            
+            const userCap = currentUser.charAt(0).toUpperCase() + currentUser.slice(1);
+            document.getElementById('sidebarUser').innerText = `👤 Akun: ${userCap}`;
+            document.getElementById('mainTitle').innerText = `💰 Harian Keuangan: ${userCap}`;
+
+            hitungDanTampilkanData();
+        }
+
+        function hitungDanTampilkanData() {
+            let allTrans = JSON.parse(localStorage.getItem("app_transaksi")) || [];
+            // Filter data khusus user yang sedang aktif
+            let userTrans = allTrans.filter(t => t.username === currentUser);
+
+            let totalPemasukan = 0;
+            let totalPengeluaran = 0;
+
+            const riwayatList = document.getElementById('riwayatList');
+            riwayatList.innerHTML = "";
+
+            if(userTrans.length === 0) {
+                riwayatList.innerHTML = `<p class="text-sm text-slate-400 text-center py-4 bg-white rounded-lg border border-dashed border-slate-200">Belum ada riwayat pengeluaran pada akun Anda.</p>`;
+            }
+
+            // Membaca terbalik (Data terbaru di atas seperti .iloc[::-1])
+            [...userTrans].reverse().forEach(item => {
+                let borderCol = item.jenis === "Pemasukan" ? "#10b981" : "#ef4444";
+                let textCol = item.jenis === "Pemasukan" ? "text-emerald-500" : "text-red-500";
+                let bgBadge = item.jenis === "Pemasukan" ? "#e6f4ea" : "#fce8e6";
+                let badgeLabel = item.jenis === "Pemasukan" ? "MASUK" : "KELUAR";
+                let tandaMinus = item.jenis === "Pemasukan" ? "" : "-";
+
+                if(item.jenis === "Pemasukan") totalPemasukan += item.harga;
+                else totalPengeluaran += item.harga;
+
+                let row = `
+                    <div class="flex gap-2 items-center bg-white p-3 rounded-xl shadow-xs border-l-4 transition hover:bg-slate-50" style="border-left-color: ${borderCol}">
+                        <div class="flex-1 flex justify-between items-center">
+                            <div>
+                                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full" style="background-color: ${bgBadge}; color: ${borderCol};">${badgeLabel}</span>
+                                <span class="text-xs text-slate-400 ml-2">📅 ${item.tanggal}</span>
+                                <div class="font-semibold text-slate-800 text-sm mt-1">${item.nama}</div>
+                            </div>
+                            <div class="font-bold text-sm ${textCol}">
+                                ${tandaMinus}Rp ${item.harga.toLocaleString('id-ID')}
+                            </div>
+                        </div>
+                        <button onclick="hapusTransaksi(${item.id})" class="text-slate-300 hover:text-red-500 p-1 rounded-lg text-sm transition cursor-pointer" title="Hapus">🗑️</button>
+                    </div>
+                `;
+                riwayatList.innerHTML += row;
+            });
+
+            let sisaSaldo = totalPemasukan - totalPengeluaran;
+
+            // Set ke Elemen UI Dashboard
+            document.getElementById('saldoFormat').innerText = `Rp ${sisaSaldo.toLocaleString('id-ID')}`;
+            document.getElementById('totalPemasukan').innerText = `Rp ${totalPemasukan.toLocaleString('id-ID')}`;
+            document.getElementById('totalPengeluaran').innerText = `Rp ${totalPengeluaran.toLocaleString('id-ID')}`;
+
+            // Simpan variabel global saldo saat ini untuk validasi input pengeluaran
+            window.currentSaldoGlobal = sisaSaldo;
+        }
+
+        // --- SISTEM SIMPAN & HAPUS DATA Cloud (LocalStorage) ---
+        function simpanTransaksi() {
+            const jenis = document.querySelector('input[name="jenisClean"]:checked').value;
+            const tanggalPilihan = document.getElementById('txTanggal').value;
+            const harga = parseInt(document.getElementById('txHarga').value);
+            const nama = document.getElementById('txNama').value.trim();
+
+            if(!nama) return alert("Keterangan transaksi tidak boleh kosong!");
+            if(!harga || harga <= 0) return alert("Nominal transaksi harus lebih besar dari Rp 0!");
+            if(jenis === "Pengeluaran" && harga > window.currentSaldoGlobal) {
+                return alert(`❌ Saldo tidak mencukupi! Sisa saldo Anda adalah Rp ${window.currentSaldoGlobal.toLocaleString('id-ID')}`);
+            }
+
+            // Parsing Hari dan Bulan Otomatis
+            const dateObj = new Date(tanggalPilihan);
+            const hariIndo = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+            const bulanIndo = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+            
+            const hari = hariIndo[dateObj.getDay()];
+            const bulan = bulanIndo[dateObj.getMonth()];
+
+            let allTrans = JSON.parse(localStorage.getItem("app_transaksi")) || [];
+            
+            let dataBaru = {
+                id: Date.now(), // Unique ID untuk hapus item
+                username: currentUser,
+                hari: hari,
+                tanggal: tanggalPilihan,
+                bulan: bulan,
+                nama: nama,
+                harga: harga,
+                jenis: jenis
+            };
+
+            allTrans.push(dataBaru);
+            localStorage.setItem("app_transaksi", JSON.stringify(allTrans));
+
+            // Reset Input Form
+            document.getElementById('txHarga').value = 0;
+            document.getElementById('txNama').value = "";
+            
+            alert("Data berhasil disimpan!");
+            hitungDanTampilkanData();
+        }
+
+        function hapusTransaksi(id) {
+            if(confirm("Apakah Anda yakin ingin menghapus catatan keuangan ini?")) {
+                let allTrans = JSON.parse(localStorage.getItem("app_transaksi")) || [];
+                // Filter buang ID target
+                let filtered = allTrans.filter(t => t.id !== id);
+                localStorage.setItem("app_transaksi", JSON.stringify(filtered));
+                hitungDanTampilkanData();
+            }
+        }
+
+        // --- FITUR EXPORT LAPORAN KE EXCEL (.CSV) ---
+        function exportToCSV() {
+            let allTrans = JSON.parse(localStorage.getItem("app_transaksi")) || [];
+            let userTrans = allTrans.filter(t => t.username === currentUser);
+
+            if(userTrans.length === 0) return alert("Belum ada data transaksi untuk diunduh.");
+
+            let csvContent = "data:text/csv;charset=utf-8,Tanggal,Hari,Bulan,Nama Barang / Kebutuhan,Harga (Rp),Jenis\n";
+            
+            userTrans.forEach(t => {
+                csvContent += `${t.tanggal},${t.hari},${t.bulan},"${t.nama}",${t.harga},${t.jenis}\n`;
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `Laporan_Keuangan_${currentUser}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    </script>
+</body>
+</html>
