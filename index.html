@@ -5,387 +5,346 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Harian Keuangan</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        body {
-            font-family: 'Poppins', sans-serif;
-            background-color: #f3f7fa;
-            overscroll-behavior-y: contain;
-        }
-        /* 🎬 ANIMASI TRANSISI HALAMAN (FADE-IN EFFECT) */
-        @keyframes pageFadeIn {
-            from { opacity: 0; transform: translateY(12px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .fade-in {
-            animation: pageFadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-        }
-    </style>
+    <script src="https://cdn.jsdelivr.net/npm/lucide@0.344.0/dist/umd/lucide.min.js"></script>
 </head>
-<body class="text-slate-800 min-h-screen">
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col items-center justify-start p-6">
 
-    <div id="authPage" class="max-w-md mx-auto mt-16 p-4 fade-in">
-        <h2 class="text-center text-2xl font-bold mb-6 text-slate-800">🔐 Akses Sistem Keuangan</h2>
+    <div class="w-full max-w-4xl bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col md:flex-row min-h-[600px]">
         
-        <div class="flex border-b border-slate-200 mb-6 bg-white rounded-t-xl overflow-hidden shadow-xs">
-            <button onclick="switchTab('login')" id="tabLoginBtn" class="w-1/2 py-3 font-semibold text-center bg-white border-b-2 border-blue-500 text-blue-600 transition cursor-pointer">🔑 Login</button>
-            <button onclick="switchTab('register')" id="tabRegBtn" class="w-1/2 py-3 font-semibold text-center bg-slate-50 text-slate-500 border-b-2 border-transparent hover:bg-slate-100 transition cursor-pointer">📝 Daftar Akun Baru</button>
-        </div>
+        <div class="w-full md:w-64 bg-slate-900 text-white p-6 flex flex-col justify-between border-r border-slate-800">
+            <div>
+                <div class="flex items-center gap-3 mb-8">
+                    <div class="bg-blue-600 p-2 rounded-xl text-white">
+                        <i data-lucide="wallet" class="w-6 h-6"></i>
+                    </div>
+                    <h2 class="text-xl font-bold tracking-wide">RAMZ-FIN</h2>
+                </div>
 
-        <div id="formLogin" class="bg-white p-6 rounded-b-xl shadow-xs space-y-4">
-            <h3 class="text-lg font-bold text-slate-700">Silakan Login / Masuk</h3>
-            <div>
-                <label class="block text-sm font-medium text-slate-600 mb-1">Username</label>
-                <input type="text" id="loginUser" class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-slate-600 mb-1">Password</label>
-                <input type="password" id="loginPass" class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
-            </div>
-            <button onclick="prosesLogin()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 rounded-lg shadow-sm transition cursor-pointer">Masuk Ke Aplikasi</button>
-        </div>
-
-        <div id="formRegister" class="bg-white p-6 rounded-b-xl shadow-xs space-y-4 hidden">
-            <h3 class="text-lg font-bold text-slate-700">Buat Akun Baru</h3>
-            <div>
-                <label class="block text-sm font-medium text-slate-600 mb-1">Buat Username</label>
-                <input type="text" id="regUser" class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-slate-600 mb-1">Buat Password</label>
-                <input type="password" id="regPass" class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-slate-600 mb-1">Konfirmasi Password</label>
-                <input type="password" id="regPassConf" class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
-            </div>
-            <button onclick="prosesRegister()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2 rounded-lg shadow-sm transition cursor-pointer">Daftar Sekarang</button>
-        </div>
-    </div>
-
-
-    <div id="mainPage" class="flex flex-col md:flex-row min-h-screen hidden">
-        
-        <aside class="w-full md:w-64 bg-white border-r border-slate-200 p-6 flex flex-col justify-between shadow-xs">
-            <div>
-                <h3 id="sidebarUser" class="text-center font-bold text-lg text-slate-700 border-b border-slate-100 pb-4 mb-6">👤 Akun: -</h3>
-                
-                <div class="bg-white p-4 rounded-xl shadow-xs border-l-5 border-blue-500 hover:-translate-y-0.5 transition duration-300">
-                    <div class="text-[11px] font-bold text-slate-400 tracking-wide mb-1">💰 SISA SALDO ANDA</div>
-                    <div id="saldoFormat" class="text-xl font-bold text-slate-800">Rp 0</div>
+                <div class="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-4 mb-4">
+                    <p class="text-xs text-slate-400 font-medium uppercase tracking-wider mb-1">Sisa Saldo Anda</p>
+                    <h3 id="saldo-total" class="text-2xl font-black text-blue-4xl text-blue-4xl">Rp 0</h3>
                 </div>
             </div>
+
+            <button onclick="logout()" class="w-full mt-6 bg-slate-800 hover:bg-red-900/40 border border-slate-700 hover:border-red-800/50 text-slate-300 hover:text-red-200 py-3 px-4 rounded-xl font-medium transition-all flex items-center justify-center gap-2 cursor-pointer">
+                <i data-lucide="log-out" class="w-4 h-4"></i>
+                Keluar Aplikasi
+            </button>
+        </div>
+
+        <div class="flex-1 p-6 md:p-8 flex flex-col gap-6 overflow-y-auto">
             
-            <button onclick="prosesLogout()" class="mt-8 w-full border border-slate-200 hover:bg-slate-50 text-slate-600 font-semibold py-2 rounded-lg transition cursor-pointer">🚪 Logout/Keluar Akun</button>
-        </aside>
-
-        <main class="flex-1 p-6 max-w-4xl mx-auto w-full fade-in">
-            <h2 id="mainTitle" class="text-2xl font-bold text-slate-800">💰 Harian Keuangan: -</h2>
-            <p class="text-sm text-slate-400 mb-6">Catat keuangan pribadi Anda langsung secara terstruktur.</p>
-            <hr class="border-slate-200 my-4">
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                <div class="bg-white p-5 rounded-xl shadow-xs border-l-5 border-emerald-500 hover:-translate-y-0.5 transition duration-300">
-                    <div class="text-[11px] font-bold text-slate-400 tracking-wide mb-1">📈 TOTAL UANG MASUK (PEMASUKAN)</div>
-                    <div id="totalPemasukan" class="text-2xl font-bold text-emerald-500">Rp 0</div>
-                </div>
-                <div class="bg-white p-5 rounded-xl shadow-xs border-l-5 border-red-500 hover:-translate-y-0.5 transition duration-300">
-                    <div class="text-[11px] font-bold text-slate-400 tracking-wide mb-1">📉 TOTAL UANG KELUAR (PENGELUARAN)</div>
-                    <div id="totalPengeluaran" class="text-2xl font-bold text-red-500">Rp 0</div>
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+                <div>
+                    <h1 class="text-2xl font-extrabold tracking-tight text-slate-900 flex items-center gap-2">
+                        💰 Harian Keuangan: <span id="nama-user" class="text-blue-600">User</span>
+                    </h1>
+                    <p class="text-sm text-slate-500 mt-1">Catat keuangan pribadi Anda langsung ke cloud.</p>
                 </div>
             </div>
 
-            <div class="bg-white p-6 rounded-xl shadow-xs border border-slate-100 mb-6 space-y-4">
-                <h3 class="text-lg font-bold text-slate-700">📝 Tambah Catatan Baru</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 flex items-center gap-4">
+                    <div class="bg-emerald-500 p-3 rounded-xl text-white shadow-md shadow-emerald-200">
+                        <i data-lucide="arrow-down-left" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs text-slate-500 font-semibold uppercase">Total Pemasukan</p>
+                        <h4 id="total-masuk" class="text-xl font-bold text-emerald-700">Rp 0</h4>
+                    </div>
+                </div>
+                <div class="bg-rose-50 border border-rose-100 rounded-2xl p-4 flex items-center gap-4">
+                    <div class="bg-rose-500 p-3 rounded-xl text-white shadow-md shadow-rose-200">
+                        <i data-lucide="arrow-up-right" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs text-slate-500 font-semibold uppercase">Total Pengeluaran</p>
+                        <h4 id="total-keluar" class="text-xl font-bold text-rose-700">Rp 0</h4>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-slate-50/50 border border-slate-200/60 rounded-2xl p-5 flex flex-col gap-4">
+                <h3 class="font-bold text-slate-900 flex items-center gap-2 text-base">
+                    <i data-lucide="plus-circle" class="w-5 h-5 text-blue-600"></i> Tambah Catatan Baru
+                </h3>
                 
-                <div>
-                    <label class="block text-sm font-medium text-slate-600 mb-2">Jenis Transaksi</label>
-                    <div class="flex gap-4">
-                        <label class="inline-flex items-center cursor-pointer">
-                            <input type="radio" name="jenisClean" value="Pengeluaran" checked class="w-4 h-4 text-red-600 focus:ring-red-500">
-                            <span class="ml-2 text-sm text-slate-600">📉 Pengeluaran</span>
-                        </label>
-                        <label class="inline-flex items-center cursor-pointer">
-                            <input type="radio" name="jenisClean" value="Pemasukan" class="w-4 h-4 text-emerald-600 focus:ring-emerald-500">
-                            <span class="ml-2 text-sm text-slate-600">📈 Pemasukan</span>
-                        </label>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-sm font-medium text-slate-600 mb-1">Pilih Tanggal Transaksi</label>
-                        <input type="date" id="txTanggal" class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1.5">Jenis Transaksi</label>
+                        <div class="flex gap-4 bg-white border border-slate-200 p-2.5 rounded-xl justify-around">
+                            <label class="flex items-center gap-2 text-sm font-medium text-slate-7xl cursor-pointer">
+                                <input type="radio" name="jenis" value="Pengeluaran" checked class="w-4 h-4 text-blue-600"> 📉 Pengeluaran
+                            </label>
+                            <label class="flex items-center gap-2 text-sm font-medium text-slate-7xl cursor-pointer">
+                                <input type="radio" name="jenis" value="Pemasukan" class="w-4 h-4 text-blue-600"> 📈 Pemasukan
+                            </label>
+                        </div>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-slate-600 mb-1">Harga / Nominal (Rp)</label>
-                        <input type="number" id="txHarga" value="0" min="0" step="1000" class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1.5">Pilih Tanggal</label>
+                        <input type="date" id="input-tanggal" class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-sm font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                     </div>
                 </div>
 
-                <div>
-                    <label class="block text-sm font-medium text-slate-600 mb-1">Nama Barang / Kebutuhan / Sumber Dana</label>
-                    <input type="text" id="txNama" placeholder="Contoh: Bensin, Makan Siang, Uang Saku" class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1.5">Harga / Nominal (Rp)</label>
+                        <input type="number" id="input-harga" placeholder="Contoh: 50000" class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-sm font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1.5">Nama Barang / Sumber Dana</label>
+                        <input type="text" id="input-barang" placeholder="Contoh: Bensin, Uang Saku" class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-sm font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
                 </div>
 
-                <button onclick="simpanTransaksi()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg shadow-md transition transform active:translate-y-0.5 cursor-pointer">Simpan Transaksi</button>
-            </div>
-
-            <div class="mb-6">
-                <button onclick="exportToCSV()" class="w-full md:w-auto bg-slate-100 border border-slate-200 hover:bg-slate-200 text-slate-700 font-semibold py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition cursor-pointer">
-                    📥 Simpan Laporan ke File Excel (.csv)
+                <button onclick="simpanTransaksi()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg shadow-blue-200 hover:shadow-none transition-all duration-200 cursor-pointer text-sm">
+                    Simpan Transaksi
                 </button>
             </div>
 
-            <h3 class="text-lg font-bold text-slate-700 mb-4">📊 Riwayat & Kelola Keuangan</h3>
-            <div id="riwayatList" class="space-y-3">
+            <div class="flex flex-col gap-3">
+                <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+                    <h3 class="font-bold text-slate-900 flex items-center gap-2 text-base">
+                        <i data-lucide="history" class="w-5 h-5 text-slate-500"></i> Riwayat & Kelola Keuangan
+                    </h3>
+                    <button onclick="downloadCSV()" class="text-xs bg-slate-100 border border-slate-200 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg font-semibold transition-all cursor-pointer flex items-center gap-1">
+                        <i data-lucide="download" class="w-3.5 h-3.5"></i> Simpan Excel (.csv)
+                    </button>
                 </div>
-        </main>
+                
+                <div id="status-cloud" class="hidden text-center py-4 text-sm font-medium"></div>
+
+                <div id="list-transaksi" class="flex flex-col gap-2 max-h-[300px] overflow-y-auto pr-1">
+                    </div>
+            </div>
+
+        </div>
     </div>
 
     <script>
-        // URL API GOOGLE APPS SCRIPT WEB APP MILIK ALI
+        // ==================== CONFIGURATION URL ====================
         const API_URL = "https://script.google.com/macros/s/AKfycbxj9I5O9Dnlf-s_W94f-Oe910tOUBu11wgUy2Fj_x_0sDJfLLQCTol_EGUtk4qJI0Gdbg/exec";
-        let currentUser = "";
-        let localTransCache = []; // Menyimpan data transaksi untuk fitur offline export
+        // ===========================================================
 
-        document.addEventListener("DOMContentLoaded", () => {
-            // Pasang tanggal hari ini sebagai default di input form
-            document.getElementById('txTanggal').value = new Date().toISOString().split('T')[0];
-            cekSession();
-        });
+        let currentUser = localStorage.getItem("keuangan_user") || "Rama";
+        let daftarTransaksi = [];
 
-        // --- SISTEM TAB INTERFACES ---
-        function switchTab(type) {
-            const tabLoginBtn = document.getElementById('tabLoginBtn');
-            const tabRegBtn = document.getElementById('tabRegBtn');
-            const formLogin = document.getElementById('formLogin');
-            const formRegister = document.getElementById('formRegister');
+        // Inisialisasi Halaman Utama
+        document.getElementById("nama-user").innerText = currentUser.toUpperCase();
+        document.getElementById("input-tanggal").valueAsDate = new Date();
+        lucide.createIcons();
+        muatDataDariCloud();
 
-            if (type === 'login') {
-                tabLoginBtn.className = "w-1/2 py-3 font-semibold text-center bg-white border-b-2 border-blue-500 text-blue-600 transition cursor-pointer";
-                tabRegBtn.className = "w-1/2 py-3 font-semibold text-center bg-slate-50 text-slate-500 border-b-2 border-transparent hover:bg-slate-100 transition cursor-pointer";
-                formLogin.classList.remove('hidden');
-                formRegister.classList.add('hidden');
-            } else {
-                tabRegBtn.className = "w-1/2 py-3 font-semibold text-center bg-white border-b-2 border-blue-500 text-blue-600 transition cursor-pointer";
-                tabLoginBtn.className = "w-1/2 py-3 font-semibold text-center bg-slate-50 text-slate-500 border-b-2 border-transparent hover:bg-slate-100 transition cursor-pointer";
-                formRegister.classList.remove('hidden');
-                formLogin.classList.add('hidden');
-            }
-        }
-
-        // --- SISTEM AUTENTIKASI VIA CLOUD GOOGLE SHEETS ---
-        async function prosesRegister() {
-            const user = document.getElementById('regUser').value.trim().toLowerCase();
-            const pass = document.getElementById('regPass').value;
-            const conf = document.getElementById('regPassConf').value;
-
-            if(!user || !pass || !conf) return alert("Semua kolom wajib diisi!");
-            if(user.includes(" ")) return alert("Username tidak boleh mengandung spasi!");
-            if(pass !== conf) return alert("Konfirmasi password tidak cocok!");
+        // Ambil Data dari Spreadsheet Cloud via GET
+        async function muatDataDariCloud() {
+            const statusDiv = document.getElementById("status-cloud");
+            statusDiv.className = "text-center py-4 text-sm font-medium text-blue-600 flex items-center justify-center gap-2";
+            statusDiv.innerHTML = `<span class="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-t-transparent"></span> Memuat database cloud...`;
+            statusDiv.classList.remove("hidden");
 
             try {
-                // Tarik data user untuk memastikan tidak terjadi duplikat username
-                let res = await fetch(`${API_URL}?sheetName=Users`);
-                let users = await res.json();
-                if(users.some(u => String(u.Username).toLowerCase() === user)) return alert("Username sudah terpakai!");
-
-                // Kirim pendaftaran baru ke cloud spreadsheet
-                let payload = {
-                    sheetName: "Users",
-                    action: "INSERT",
-                    rowData: [user, pass]
-                };
-
-                await fetch(API_URL, { method: "POST", body: JSON.stringify(payload) });
-                alert("Akun berhasil didaftarkan ke Cloud! Silakan login.");
-                switchTab('login');
-            } catch (err) {
-                alert("Gagal terhubung ke cloud server pendaftaran.");
-            }
-        }
-
-        async function prosesLogin() {
-            const user = document.getElementById('loginUser').value.trim().toLowerCase();
-            const pass = document.getElementById('loginPass').value;
-
-            if(!user || !pass) return alert("Semua kolom harus diisi!");
-
-            try {
-                let res = await fetch(`${API_URL}?sheetName=Users`);
-                let users = await res.json();
-                let match = users.find(u => String(u.Username).toLowerCase() === user && String(u.Password) === pass);
-
-                if(match) {
-                    currentUser = user;
-                    localStorage.setItem("app_current_session", user);
-                    alert(`Selamat datang kembali, ${user.charAt(0).toUpperCase() + user.slice(1)}!`);
-                    renderDashboard();
-                } else {
-                    alert("Username atau Password salah!");
-                }
-            } catch (err) {
-                alert("Gagal memvalidasi data login ke cloud server.");
-            }
-        }
-
-        function cekSession() {
-            let session = localStorage.getItem("app_current_session");
-            if(session) {
-                currentUser = session;
-                renderDashboard();
-            }
-        }
-
-        function prosesLogout() {
-            localStorage.removeItem("app_current_session");
-            currentUser = "";
-            document.getElementById('mainPage').classList.add('hidden');
-            document.getElementById('authPage').classList.remove('hidden');
-        }
-
-        function renderDashboard() {
-            document.getElementById('authPage').classList.add('hidden');
-            document.getElementById('mainPage').classList.remove('hidden');
-            
-            const userCap = currentUser.charAt(0).toUpperCase() + currentUser.slice(1);
-            document.getElementById('sidebarUser').innerText = `👤 Akun: ${userCap}`;
-            document.getElementById('mainTitle').innerText = `💰 Harian Keuangan: ${userCap}`;
-
-            hitungDanTampilkanData();
-        }
-
-        // --- MANAJEMEN DATA TRANSAKSI REAL-TIME ---
-        async function hitungDanTampilkanData() {
-            const riwayatList = document.getElementById('riwayatList');
-            riwayatList.innerHTML = `<p class="text-sm text-slate-400 text-center py-4">⏳ Memuat data murni dari Cloud Google Sheets...</p>`;
-
-            try {
-                let res = await fetch(`${API_URL}?sheetName=Pengeluaran`);
-                let allTrans = await res.json();
+                const respon = await fetch(`${API_URL}?sheetName=Pengeluaran`);
+                if (!respon.ok) throw new Error("Gagal mengambil respon server");
                 
-                // Filter data khusus user yang sedang aktif
-                let userTrans = allTrans.filter(t => String(t.Username).toLowerCase() === currentUser);
-                localTransCache = userTrans; // Cache data untuk keperluan export laporan
+                const dataMentah = await respon.json();
+                
+                // Filter data milik user aktif saat ini
+                daftarTransaksi = dataMentah.filter(item => String(item.Username).toLowerCase() === currentUser.toLowerCase());
+                
+                statusDiv.classList.add("hidden");
+                renderAplikasi();
+            } catch (err) {
+                console.error(err);
+                statusDiv.className = "text-center py-4 text-sm font-medium text-rose-600 flex items-center justify-center gap-2";
+                statusDiv.innerHTML = `❌ Gagal memuat data dari cloud spreadsheet database.`;
+            }
+        }
 
-                let totalPemasukan = 0;
-                let totalPengeluaran = 0;
-                riwayatList.innerHTML = "";
+        // Render Antarmuka Tampilan Data & Perhitungan Saldo
+        function renderAplikasi() {
+            const container = document.getElementById("list-transaksi");
+            container.innerHTML = "";
 
-                if(userTrans.length === 0) {
-                    riwayatList.innerHTML = `<p class="text-sm text-slate-400 text-center py-4 bg-white rounded-lg border border-dashed border-slate-200">Belum ada riwayat transaksi pada akun Anda.</p>`;
-                }
+            let totalMasuk = 0;
+            let totalKeluar = 0;
 
-                // Tampilkan terbalik agar data terbaru berada di posisi paling atas
-                [...userTrans].reverse().forEach(item => {
-                    let hargaMurni = parseInt(item["Harga (Rp)"]) || 0;
-                    let jenisTx = item["Jenis"];
-                    let borderCol = jenisTx === "Pemasukan" ? "#10b981" : "#ef4444";
-                    let textCol = jenisTx === "Pemasukan" ? "text-emerald-500" : "text-red-500";
-                    let bgBadge = jenisTx === "Pemasukan" ? "#e6f4ea" : "#fce8e6";
-                    let badgeLabel = jenisTx === "Pemasukan" ? "MASUK" : "KELUAR";
-                    let tandaMinus = jenisTx === "Pemasukan" ? "" : "-";
+            if (daftarTransaksi.length === 0) {
+                container.innerHTML = `<p class="text-center text-slate-400 py-6 text-sm italic font-medium">Belum ada riwayat transaksi akun Anda di cloud.</p>`;
+            } else {
+                // Urutkan transaksi berdasarkan tanggal terbaru di atas
+                daftarTransaksi.sort((a, b) => new Date(b.Tanggal) - new Date(a.Tanggal));
 
-                    if(jenisTx === "Pemasukan") totalPemasukan += hargaMurni;
-                    else totalPengeluaran += hargaMurni;
+                daftarTransaksi.forEach(item => {
+                    const nominal = parseInt(item["Harga (Rp)"]) || 0;
+                    const jenis = item.Jenis;
 
-                    let row = `
-                        <div class="flex gap-2 items-center bg-white p-3 rounded-xl shadow-xs border-l-4 transition hover:bg-slate-50" style="border-left-color: ${borderCol}">
-                            <div class="flex-1 flex justify-between items-center">
-                                <div>
-                                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full" style="background-color: ${bgBadge}; color: ${borderCol};">${badgeLabel}</span>
-                                    <span class="text-xs text-slate-400 ml-2">📅 ${item["Tanggal"]}</span>
-                                    <div class="font-semibold text-slate-800 text-sm mt-1">${item["Nama Barang / Kebutuhan"]}</div>
-                                </div>
-                                <div class="font-bold text-sm ${textCol}">
-                                    ${tandaMinus}Rp ${hargaMurni.toLocaleString('id-ID')}
-                                </div>
+                    if (jenis === "Pemasukan") totalMasuk += nominal;
+                    else totalKeluar += nominal;
+
+                    const row = document.createElement("div");
+                    row.className = "flex items-center justify-between bg-white border border-slate-100 p-3 rounded-xl hover:border-slate-200 transition-all shadow-sm";
+                    
+                    const isMasuk = jenis === "Pemasukan";
+                    const iconColor = isMasuk ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700";
+                    const iconName = isMasuk ? "arrow-down-left" : "arrow-up-right";
+                    const textPriceColor = isMasuk ? "text-emerald-700" : "text-rose-700";
+                    const labelSign = isMasuk ? "+" : "-";
+
+                    row.innerHTML = `
+                        <div class="flex items-center gap-3">
+                            <div class="${iconColor} p-2 rounded-lg">
+                                <i data-lucide="${iconName}" class="w-4 h-4"></i>
                             </div>
-                            <button onclick="hapusTransaksi('${item["ID_Transaksi"]}')" class="text-slate-300 hover:text-red-500 p-1 rounded-lg text-sm transition cursor-pointer" title="Hapus">🗑️</button>
+                            <div>
+                                <h5 class="font-bold text-slate-900 text-sm">${item["Nama Barang / Kebutuhan"]}</h5>
+                                <p class="text-xs text-slate-400 font-medium">${formatTanggalIndo(item.Tanggal)}</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-4">
+                            <span class="font-extrabold text-sm ${textPriceColor}">${labelSign} Rp ${nominal.toLocaleString('id-ID')}</span>
+                            <button onclick="hapusTransaksi('${item.ID_Transaksi}')" class="text-slate-300 hover:text-rose-600 p-1 rounded-lg hover:bg-rose-50 transition-all cursor-pointer">
+                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            </button>
                         </div>
                     `;
-                    riwayatList.innerHTML += row;
+                    container.appendChild(row);
                 });
-
-                let sisaSaldo = totalPemasukan - totalPengeluaran;
-                
-                // Render ke UI Dashboard utama
-                document.getElementById('saldoFormat').innerText = `Rp ${sisaSaldo.toLocaleString('id-ID')}`;
-                document.getElementById('totalPemasukan').innerText = `Rp ${totalPemasukan.toLocaleString('id-ID')}`;
-                document.getElementById('totalPengeluaran').innerText = `Rp ${totalPengeluaran.toLocaleString('id-ID')}`;
-                
-                window.currentSaldoGlobal = sisaSaldo;
-
-            } catch (err) {
-                riwayatList.innerHTML = `<p class="text-sm text-red-400 text-center py-4">❌ Gagal memuat data dari cloud spreadsheet database.</p>`;
             }
+
+            // Hitung sisa saldo akhir
+            const sisaSaldo = totalMasuk - totalKeluar;
+
+            document.getElementById("total-masuk").innerText = `Rp ${totalMasuk.toLocaleString('id-ID')}`;
+            document.getElementById("total-keluar").innerText = `Rp ${totalKeluar.toLocaleString('id-ID')}`;
+            
+            const saldoEl = document.getElementById("saldo-total");
+            saldoEl.innerText = `Rp ${sisaSaldo.toLocaleString('id-ID')}`;
+            if (sisaSaldo < 0) {
+                saldoEl.className = "text-2xl font-black text-rose-500";
+            } else {
+                saldoEl.className = "text-2xl font-black text-blue-4xl text-blue-4xl";
+            }
+
+            lucide.createIcons();
         }
 
+        // Simpan Transaksi Baru via POST ke Cloud
         async function simpanTransaksi() {
-            const jenis = document.querySelector('input[name="jenisClean"]:checked').value;
-            const tanggalPilihan = document.getElementById('txTanggal').value;
-            const harga = parseInt(document.getElementById('txHarga').value);
-            const nama = document.getElementById('txNama').value.trim();
+            const jenis = document.querySelector('input[name="jenis"]:checked').value;
+            const tglVal = document.getElementById("input-tanggal").value;
+            const harga = parseInt(document.getElementById("input-harga").value);
+            const barang = document.getElementById("input-barang").value.trim();
 
-            if(!nama) return alert("Keterangan transaksi tidak boleh kosong!");
-            if(!harga || harga <= 0) return alert("Nominal transaksi harus lebih besar dari Rp 0!");
-            if(jenis === "Pengeluaran" && harga > window.currentSaldoGlobal) {
-                return alert(`❌ Saldo tidak mencukupi! Sisa saldo Anda adalah Rp ${window.currentSaldoGlobal.toLocaleString('id-ID')}`);
-            }
+            if (!tglVal) return alert("Pilih tanggal transaksi terlebih dahulu!");
+            if (!harga || harga <= 0) return alert("Nominal transaksi harus lebih besar dari Rp 0!");
+            if (!barang) return alert("Isi nama kebutuhan atau sumber dana!");
 
-            const dateObj = new Date(tanggalPilihan);
-            const hariIndo = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
-            const bulanIndo = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
-            const txId = "TX-" + Date.now(); // ID Transaksi Unik untuk referensi hapus data murni cloud
+            const tglObj = new Date(tglVal);
+            const namaHari = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"][tglObj.getDay()];
+            const namaBulan = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"][tglObj.getMonth()];
+            const txId = "TX-" + Date.now() + Math.floor(Math.random() * 1000);
 
-            let payload = {
+            // Format array data baris sesuai kolom spreadsheet
+            const dataBaris = [
+                currentUser,  // A: Username
+                namaHari,     // B: Hari
+                tglVal,       // C: Tanggal (YYYY-MM-DD)
+                namaBulan,    // D: Bulan
+                barang,       // E: Nama Barang / Kebutuhan
+                harga,        // F: Harga (Rp)
+                jenis,        // G: Jenis (Pemasukan/Pengeluaran)
+                txId          // H: ID_Transaksi
+            ];
+
+            const payload = {
                 sheetName: "Pengeluaran",
                 action: "INSERT",
-                rowData: [currentUser, hariIndo[dateObj.getDay()], tanggalPilihan, bulanIndo[dateObj.getMonth()], nama, harga, jenis, txId]
+                rowData: dataBaris
             };
 
             try {
-                await fetch(API_URL, { method: "POST", body: JSON.stringify(payload) });
-                document.getElementById('txHarga').value = 0;
-                document.getElementById('txNama').value = "";
-                alert("Data berhasil tersimpan ke cloud spreadsheet!");
-                hitungDanTampilkanData();
+                const respon = await fetch(API_URL, {
+                    method: "POST",
+                    body: JSON.stringify(payload)
+                });
+                const hasil = await respon.json();
+
+                if (hasil.status === "SUCCESS") {
+                    // Kosongkan form input
+                    document.getElementById("input-harga").value = "";
+                    document.getElementById("input-barang").value = "";
+                    
+                    // Refresh data
+                    muatDataDariCloud();
+                } else {
+                    alert("Gagal menyimpan data transaksi ke cloud: " + hasil.message);
+                }
             } catch (err) {
+                console.error(err);
                 alert("Gagal mengirim data transaksi ke cloud.");
             }
         }
 
-        async function hapusTransaksi(transactionId) {
-            if(!transactionId || transactionId === "undefined") return alert("Data transaksi ini tidak memiliki ID Cloud murni.");
-            if(confirm("Apakah Anda yakin ingin menghapus catatan keuangan ini secara permanen dari Cloud?")) {
-                let payload = {
-                    sheetName: "Pengeluaran",
-                    action: "DELETE",
-                    transactionId: transactionId
-                };
-                try {
-                    await fetch(API_URL, { method: "POST", body: JSON.stringify(payload) });
-                    hitungDanTampilkanData();
-                } catch (err) {
-                    alert("Gagal menghapus data transaksi dari Cloud.");
+        // Hapus Transaksi Berdasarkan ID_Transaksi via POST ke Cloud
+        async function hapusTransaksi(txId) {
+            if (!confirm("Apakah Anda yakin ingin menghapus catatan transaksi ini?")) return;
+
+            const payload = {
+                sheetName: "Pengeluaran",
+                action: "DELETE",
+                transactionId: txId
+            };
+
+            try {
+                const respon = await fetch(API_URL, {
+                    method: "POST",
+                    body: JSON.stringify(payload)
+                });
+                const hasil = await respon.json();
+
+                if (hasil.status === "SUCCESS") {
+                    muatDataDariCloud();
+                } else {
+                    alert("Gagal menghapus data di cloud: " + hasil.message);
                 }
+            } catch (err) {
+                console.error(err);
+                alert("Terjadi gangguan koneksi saat menghapus data.");
             }
         }
 
-        function exportToCSV() {
-            if(localTransCache.length === 0) return alert("Belum ada data transaksi untuk diunduh.");
-            let csvContent = "data:text/csv;charset=utf-8,Tanggal,Hari,Bulan,Nama Barang / Kebutuhan,Harga (Rp),Jenis\n";
-            localTransCache.forEach(t => {
-                csvContent += `${t["Tanggal"]},${t["Hari"]},${t["Bulan"]},"${t["Nama Barang / Kebutuhan"]}",${t["Harga (Rp)"]},${t["Jenis"]}\n`;
+        // Format Tanggal Internasional ke Indonesia Terbaca
+        function formatTanggalIndo(tglStr) {
+            if (!tglStr) return "";
+            const ops = { year: 'numeric', month: 'long', day: 'numeric' };
+            return new Date(tglStr).toLocaleDateString('id-ID', ops);
+        }
+
+        // Cetak Unduh Laporan format CSV Offline
+        function downloadCSV() {
+            if(daftarTransaksi.length === 0) return alert("Tidak ada data transaksi untuk diekspor!");
+            let barisCsv = "Username,Hari,Tanggal,Bulan,Nama Barang / Kebutuhan,Harga (Rp),Jenis,ID_Transaksi\n";
+            
+            daftarTransaksi.forEach(item => {
+                barisCsv += `"${item.Username}","${item.Hari}","${item.Tanggal}","${item.Bulan}","${item["Nama Barang / Kebutuhan"]}",${item["Harga (Rp)"]},"${item.Jenis}","${item.ID_Transaksi}"\n`;
             });
-            const encodedUri = encodeURI(csvContent);
+
+            const blob = new Blob([barisCsv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
             const link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
+            link.setAttribute("href", url);
             link.setAttribute("download", `Laporan_Keuangan_${currentUser}.csv`);
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
+        }
+
+        // Log out Aplikasi Balik
+        function logout() {
+            localStorage.removeItem("keuangan_user");
+            alert("Berhasil keluar dari sesi akun.");
+            location.reload(); 
         }
     </script>
 </body>
