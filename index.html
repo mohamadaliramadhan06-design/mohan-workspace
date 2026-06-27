@@ -3,13 +3,57 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Harian Keuangan</title>
+    <title>Harian Keuangan Cloud Auth</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <script src="https://cdn.jsdelivr.net/npm/lucide@0.344.0/dist/umd/lucide.min.js"></script>
+    <style>
+        #bird-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 9999;
+        }
+    </style>
 </head>
-<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col items-center justify-start p-6">
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col items-center justify-start p-6 relative">
 
-    <div class="w-full max-w-4xl bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col md:flex-row min-h-[600px]">
+    <canvas id="bird-canvas"></canvas>
+
+    <div id="auth-container" class="w-full max-w-md bg-white rounded-2xl shadow-xl p-6 mt-12 flex flex-col gap-4 hidden">
+        <div class="mx-auto bg-blue-50 p-4 rounded-full text-blue-600 w-16 h-16 flex items-center justify-center">
+            <i data-lucide="shield-check" class="w-8 h-8"></i>
+        </div>
+        
+        <div class="text-center">
+            <h2 id="auth-title" class="text-xl font-black text-slate-900">Masuk ke RAMZ-FIN</h2>
+            <p id="auth-subtitle" class="text-xs text-slate-400 mt-1">Silakan masukkan akun Anda untuk mengakses database cloud.</p>
+        </div>
+
+        <div class="flex flex-col gap-3 mt-2">
+            <div>
+                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Username</label>
+                <input type="text" id="auth-username" placeholder="Masukkan username..." class="w-full border border-slate-200 rounded-xl p-3 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase tracking-wide text-center">
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Password</label>
+                <input type="password" id="auth-password" placeholder="••••••••" class="w-full border border-slate-200 rounded-xl p-3 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 text-center">
+            </div>
+        </div>
+
+        <button onclick="handleAuthAksi()" id="btn-auth-primary" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg shadow-blue-100 transition-all cursor-pointer text-sm mt-2 flex items-center justify-center gap-2">
+            Masuk Sekarang
+        </button>
+
+        <p id="auth-toggle-text" class="text-xs text-center text-slate-500 mt-2">
+            Belum punya akun keuangan? 
+            <button onclick="setAuthMode('daftar')" class="text-blue-600 font-bold hover:underline cursor-pointer">Daftar Akun Baru</button>
+        </p>
+    </div>
+
+    <div id="app-container" class="w-full max-w-4xl bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col md:flex-row min-h-[600px] hidden">
         
         <div class="w-full md:w-64 bg-slate-900 text-white p-6 flex flex-col justify-between border-r border-slate-800">
             <div>
@@ -22,7 +66,7 @@
 
                 <div class="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-4 mb-4">
                     <p class="text-xs text-slate-400 font-medium uppercase tracking-wider mb-1">Sisa Saldo Anda</p>
-                    <h3 id="saldo-total" class="text-2xl font-black text-blue-4xl text-blue-4xl">Rp 0</h3>
+                    <h3 id="saldo-total" class="text-2xl font-black text-blue-600">Rp 0</h3>
                 </div>
             </div>
 
@@ -73,10 +117,10 @@
                     <div>
                         <label class="block text-xs font-bold text-slate-700 uppercase mb-1.5">Jenis Transaksi</label>
                         <div class="flex gap-4 bg-white border border-slate-200 p-2.5 rounded-xl justify-around">
-                            <label class="flex items-center gap-2 text-sm font-medium text-slate-7xl cursor-pointer">
+                            <label class="flex items-center gap-2 text-sm font-medium text-slate-700 cursor-pointer">
                                 <input type="radio" name="jenis" value="Pengeluaran" checked class="w-4 h-4 text-blue-600"> 📉 Pengeluaran
                             </label>
-                            <label class="flex items-center gap-2 text-sm font-medium text-slate-7xl cursor-pointer">
+                            <label class="flex items-center gap-2 text-sm font-medium text-slate-700 cursor-pointer">
                                 <input type="radio" name="jenis" value="Pemasukan" class="w-4 h-4 text-blue-600"> 📈 Pemasukan
                             </label>
                         </div>
@@ -114,9 +158,7 @@
                 </div>
                 
                 <div id="status-cloud" class="hidden text-center py-4 text-sm font-medium"></div>
-
-                <div id="list-transaksi" class="flex flex-col gap-2 max-h-[300px] overflow-y-auto pr-1">
-                    </div>
+                <div id="list-transaksi" class="flex flex-col gap-2 max-h-[300px] overflow-y-auto pr-1"></div>
             </div>
 
         </div>
@@ -124,19 +166,120 @@
 
     <script>
         // ==================== CONFIGURATION URL ====================
-        const API_URL = "https://script.google.com/macros/s/AKfycbxj9I5O9Dnlf-s_W94f-Oe910tOUBu11wgUy2Fj_x_0sDJfLLQCTol_EGUtk4qJI0Gdbg/exec";
+        const API_URL = "https://script.google.com/macros/s/AKfycbybQwyC7LuGwYp7J-13f1Bt3rLq1TUOZtu3ArndJBOTtelEG7vyeCa--cgzuqApdDgrsg/exec";
         // ===========================================================
 
-        let currentUser = localStorage.getItem("keuangan_user") || "Rama";
+        let authMode = "login"; 
+        let currentUser = localStorage.getItem("keuangan_user");
         let daftarTransaksi = [];
 
-        // Inisialisasi Halaman Utama
-        document.getElementById("nama-user").innerText = currentUser.toUpperCase();
-        document.getElementById("input-tanggal").valueAsDate = new Date();
-        lucide.createIcons();
-        muatDataDariCloud();
+        window.addEventListener("DOMContentLoaded", () => {
+            if (!currentUser) {
+                setAuthMode("login");
+                document.getElementById("auth-container").classList.remove("hidden");
+            } else {
+                bukaDashboard();
+            }
+            lucide.createIcons();
+            initBirdCanvas();
+        });
 
-        // Ambil Data dari Spreadsheet Cloud via GET
+        function setAuthMode(mode) {
+            authMode = mode;
+            const title = document.getElementById("auth-title");
+            const subtitle = document.getElementById("auth-subtitle");
+            const btn = document.getElementById("btn-auth-primary");
+            const toggleText = document.getElementById("auth-toggle-text");
+
+            document.getElementById("auth-username").value = "";
+            document.getElementById("auth-password").value = "";
+
+            if (mode === "login") {
+                title.innerText = "Masuk ke RAMZ-FIN";
+                subtitle.innerText = "Silakan masukkan akun Anda untuk mengakses database cloud.";
+                btn.innerText = "Masuk Sekarang";
+                toggleText.innerHTML = `Belum punya akun keuangan? <button onclick="setAuthMode('daftar')" class="text-blue-600 font-bold hover:underline cursor-pointer">Daftar Akun Baru</button>`;
+            } else {
+                title.innerText = "Daftar Akun Baru";
+                subtitle.innerText = "Buat akun baru langsung tersimpan aman ke cloud Google Sheets.";
+                btn.innerText = "Buat Akun & Registrasi";
+                toggleText.innerHTML = `Sudah punya akun resmi? <button onclick="setAuthMode('login')" class="text-blue-600 font-bold hover:underline cursor-pointer">Login Aplikasi</button>`;
+            }
+        }
+
+        async function handleAuthAksi() {
+            const username = document.getElementById("auth-username").value.trim().toLowerCase();
+            const password = document.getElementById("auth-password").value;
+            const btn = document.getElementById("btn-auth-primary");
+
+            if (!username || !password) {
+                return alert("Harap isi semua kolom Username dan Password!");
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = `<span class="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></span> Memproses cloud...`;
+
+            if (authMode === "daftar") {
+                try {
+                    const respon = await fetch(API_URL, {
+                        method: "POST",
+                        body: JSON.stringify({
+                            sheetName: "UserDB",
+                            action: "REGISTER_USER",
+                            username: username,
+                            password: password
+                        })
+                    });
+                    const hasil = await respon.json();
+
+                    if (hasil.status === "SUCCESS") {
+                        mulaiAnimasiBurung();
+                        alert("🎉 Hebat! Akun baru Anda berhasil didaftarkan langsung ke Google Sheets. Silakan login!");
+                        setAuthMode("login");
+                    } else if (hasil.status === "EXISTS") {
+                        alert("❌ Username sudah terpakai di Google Sheets. Cari nama lain!");
+                    } else {
+                        alert("Gagal daftar: " + hasil.message);
+                    }
+                } catch (err) {
+                    alert("Terjadi kesalahan koneksi cloud saat mendaftar.");
+                }
+            } else {
+                try {
+                    const respon = await fetch(API_URL, {
+                        method: "POST",
+                        body: JSON.stringify({
+                            sheetName: "UserDB",
+                            action: "CHECK_USER",
+                            username: username,
+                            password: password
+                        })
+                    });
+                    const hasil = await respon.json();
+
+                    if (hasil.status === "SUCCESS") {
+                        localStorage.setItem("keuangan_user", username);
+                        currentUser = username;
+                        document.getElementById("auth-container").classList.add("hidden");
+                        bukaDashboard();
+                    } else {
+                        alert("❌ " + hasil.message);
+                    }
+                } catch (err) {
+                    alert("Terjadi kesalahan koneksi cloud saat login.");
+                }
+            }
+            btn.disabled = false;
+            btn.innerText = authMode === "login" ? "Masuk Sekarang" : "Buat Akun & Registrasi";
+        }
+
+        function bukaDashboard() {
+            document.getElementById("app-container").classList.remove("hidden");
+            document.getElementById("nama-user").innerText = currentUser.toUpperCase();
+            document.getElementById("input-tanggal").valueAsDate = new Date();
+            muatDataDariCloud();
+        }
+
         async function muatDataDariCloud() {
             const statusDiv = document.getElementById("status-cloud");
             statusDiv.className = "text-center py-4 text-sm font-medium text-blue-600 flex items-center justify-center gap-2";
@@ -146,12 +289,11 @@
             try {
                 const respon = await fetch(`${API_URL}?sheetName=Pengeluaran`);
                 if (!respon.ok) throw new Error("Gagal mengambil respon server");
-                
                 const dataMentah = await respon.json();
                 
-                // Filter data milik user aktif saat ini
-                daftarTransaksi = dataMentah.filter(item => String(item.Username).toLowerCase() === currentUser.toLowerCase());
-                
+                if (dataMentah.status === "ERROR") throw new Error(dataMentah.message);
+
+                daftarTransaksi = dataMentah.filter(item => item.Username && String(item.Username).toLowerCase() === currentUser.toLowerCase());
                 statusDiv.classList.add("hidden");
                 renderAplikasi();
             } catch (err) {
@@ -161,49 +303,36 @@
             }
         }
 
-        // Render Antarmuka Tampilan Data & Perhitungan Saldo
         function renderAplikasi() {
             const container = document.getElementById("list-transaksi");
             container.innerHTML = "";
-
-            let totalMasuk = 0;
-            let totalKeluar = 0;
+            let totalMasuk = 0, totalKeluar = 0;
 
             if (daftarTransaksi.length === 0) {
                 container.innerHTML = `<p class="text-center text-slate-400 py-6 text-sm italic font-medium">Belum ada riwayat transaksi akun Anda di cloud.</p>`;
             } else {
-                // Urutkan transaksi berdasarkan tanggal terbaru di atas
                 daftarTransaksi.sort((a, b) => new Date(b.Tanggal) - new Date(a.Tanggal));
-
                 daftarTransaksi.forEach(item => {
                     const nominal = parseInt(item["Harga (Rp)"]) || 0;
-                    const jenis = item.Jenis;
-
-                    if (jenis === "Pemasukan") totalMasuk += nominal;
-                    else totalKeluar += nominal;
+                    if (item.Jenis === "Pemasukan") totalMasuk += nominal; else totalKeluar += nominal;
 
                     const row = document.createElement("div");
-                    row.className = "flex items-center justify-between bg-white border border-slate-100 p-3 rounded-xl hover:border-slate-200 transition-all shadow-sm";
-                    
-                    const isMasuk = jenis === "Pemasukan";
-                    const iconColor = isMasuk ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700";
-                    const iconName = isMasuk ? "arrow-down-left" : "arrow-up-right";
-                    const textPriceColor = isMasuk ? "text-emerald-700" : "text-rose-700";
-                    const labelSign = isMasuk ? "+" : "-";
+                    row.className = "flex items-center justify-between bg-white border border-slate-100 p-3 rounded-xl shadow-sm";
+                    const isMasuk = item.Jenis === "Pemasukan";
 
                     row.innerHTML = `
                         <div class="flex items-center gap-3">
-                            <div class="${iconColor} p-2 rounded-lg">
-                                <i data-lucide="${iconName}" class="w-4 h-4"></i>
+                            <div class="${isMasuk ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'} p-2 rounded-lg">
+                                <i data-lucide="${isMasuk ? 'arrow-down-left' : 'arrow-up-right'}" class="w-4 h-4"></i>
                             </div>
                             <div>
-                                <h5 class="font-bold text-slate-900 text-sm">${item["Nama Barang / Kebutuhan"]}</h5>
+                                <h5 class="font-bold text-slate-900 text-sm">${item["Nama Barang / Kebutuhan"] || "Tanpa Nama"}</h5>
                                 <p class="text-xs text-slate-400 font-medium">${formatTanggalIndo(item.Tanggal)}</p>
                             </div>
                         </div>
                         <div class="flex items-center gap-4">
-                            <span class="font-extrabold text-sm ${textPriceColor}">${labelSign} Rp ${nominal.toLocaleString('id-ID')}</span>
-                            <button onclick="hapusTransaksi('${item.ID_Transaksi}')" class="text-slate-300 hover:text-rose-600 p-1 rounded-lg hover:bg-rose-50 transition-all cursor-pointer">
+                            <span class="font-extrabold text-sm ${isMasuk ? 'text-emerald-700' : 'text-rose-700'}">${isMasuk ? '+' : '-'} Rp ${nominal.toLocaleString('id-ID')}</span>
+                            <button onclick="hapusTransaksi('${item.ID_Transaksi}')" class="text-slate-300 hover:text-rose-600 p-1 rounded-lg hover:bg-rose-50 cursor-pointer">
                                 <i data-lucide="trash-2" class="w-4 h-4"></i>
                             </button>
                         </div>
@@ -212,139 +341,144 @@
                 });
             }
 
-            // Hitung sisa saldo akhir
             const sisaSaldo = totalMasuk - totalKeluar;
-
             document.getElementById("total-masuk").innerText = `Rp ${totalMasuk.toLocaleString('id-ID')}`;
             document.getElementById("total-keluar").innerText = `Rp ${totalKeluar.toLocaleString('id-ID')}`;
-            
             const saldoEl = document.getElementById("saldo-total");
             saldoEl.innerText = `Rp ${sisaSaldo.toLocaleString('id-ID')}`;
-            if (sisaSaldo < 0) {
-                saldoEl.className = "text-2xl font-black text-rose-500";
-            } else {
-                saldoEl.className = "text-2xl font-black text-blue-4xl text-blue-4xl";
-            }
-
+            saldoEl.className = sisaSaldo < 0 ? "text-2xl font-black text-rose-500" : "text-2xl font-black text-blue-600";
             lucide.createIcons();
         }
 
-        // Simpan Transaksi Baru via POST ke Cloud
         async function simpanTransaksi() {
             const jenis = document.querySelector('input[name="jenis"]:checked').value;
             const tglVal = document.getElementById("input-tanggal").value;
             const harga = parseInt(document.getElementById("input-harga").value);
             const barang = document.getElementById("input-barang").value.trim();
 
-            if (!tglVal) return alert("Pilih tanggal transaksi terlebih dahulu!");
-            if (!harga || harga <= 0) return alert("Nominal transaksi harus lebih besar dari Rp 0!");
-            if (!barang) return alert("Isi nama kebutuhan atau sumber dana!");
+            if (!tglVal || !harga || harga <= 0 || !barang) return alert("Lengkapi data formulir dengan benar!");
 
             const tglObj = new Date(tglVal);
             const namaHari = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"][tglObj.getDay()];
             const namaBulan = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"][tglObj.getMonth()];
             const txId = "TX-" + Date.now() + Math.floor(Math.random() * 1000);
 
-            // Format array data baris sesuai kolom spreadsheet
-            const dataBaris = [
-                currentUser,  // A: Username
-                namaHari,     // B: Hari
-                tglVal,       // C: Tanggal (YYYY-MM-DD)
-                namaBulan,    // D: Bulan
-                barang,       // E: Nama Barang / Kebutuhan
-                harga,        // F: Harga (Rp)
-                jenis,        // G: Jenis (Pemasukan/Pengeluaran)
-                txId          // H: ID_Transaksi
-            ];
-
             const payload = {
                 sheetName: "Pengeluaran",
                 action: "INSERT",
-                rowData: dataBaris
+                rowData: [currentUser, namaHari, tglVal, namaBulan, barang, harga, jenis, txId]
             };
 
             try {
-                const respon = await fetch(API_URL, {
-                    method: "POST",
-                    body: JSON.stringify(payload)
-                });
+                const respon = await fetch(API_URL, { method: "POST", body: JSON.stringify(payload) });
                 const hasil = await respon.json();
-
                 if (hasil.status === "SUCCESS") {
-                    // Kosongkan form input
                     document.getElementById("input-harga").value = "";
                     document.getElementById("input-barang").value = "";
-                    
-                    // Refresh data
                     muatDataDariCloud();
-                } else {
-                    alert("Gagal menyimpan data transaksi ke cloud: " + hasil.message);
-                }
-            } catch (err) {
-                console.error(err);
-                alert("Gagal mengirim data transaksi ke cloud.");
-            }
+                } else alert("Gagal: " + hasil.message);
+            } catch (err) { alert("Gangguan jaringan."); }
         }
 
-        // Hapus Transaksi Berdasarkan ID_Transaksi via POST ke Cloud
         async function hapusTransaksi(txId) {
-            if (!confirm("Apakah Anda yakin ingin menghapus catatan transaksi ini?")) return;
-
-            const payload = {
-                sheetName: "Pengeluaran",
-                action: "DELETE",
-                transactionId: txId
-            };
-
+            if (!confirm("Hapus transaksi ini?")) return;
             try {
-                const respon = await fetch(API_URL, {
-                    method: "POST",
-                    body: JSON.stringify(payload)
-                });
+                const respon = await fetch(API_URL, { method: "POST", body: JSON.stringify({ sheetName: "Pengeluaran", action: "DELETE", transactionId: txId }) });
                 const hasil = await respon.json();
+                if (hasil.status === "SUCCESS") muatDataDariCloud(); else alert("Gagal: " + hasil.message);
+            } catch (err) { alert("Gangguan jaringan."); }
+        }
 
-                if (hasil.status === "SUCCESS") {
-                    muatDataDariCloud();
-                } else {
-                    alert("Gagal menghapus data di cloud: " + hasil.message);
-                }
-            } catch (err) {
-                console.error(err);
-                alert("Terjadi gangguan koneksi saat menghapus data.");
+        function formatTanggalIndo(tglStr) {
+            if (!tglStr) return "-";
+            return new Date(tglStr).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' });
+        }
+
+        function downloadCSV() {
+            if(daftarTransaksi.length === 0) return alert("Tidak ada data!");
+            let csv = "Username,Hari,Tanggal,Bulan,Nama Barang,Harga,Jenis,ID_Transaksi\n";
+            daftarTransaksi.forEach(i => csv += `"${i.Username}","${i.Hari}","${i.Tanggal}","${i.Bulan}","${i["Nama Barang / Kebutuhan"]}",${i["Harga (Rp)"]},"${i.Jenis}","${i.ID_Transaksi}"\n`);
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;' }));
+            link.download = `Laporan_${currentUser}.csv`;
+            link.click();
+        }
+
+        function logout() {
+            if (!confirm("Keluar aplikasi?")) return;
+            localStorage.removeItem("keuangan_user");
+            location.reload(); 
+        }
+
+        // ==================== ENGINE ANIMASI BURUNG TERBANG ====================
+        let canvas, ctx, birds = [];
+        
+        function initBirdCanvas() {
+            canvas = document.getElementById("bird-canvas");
+            ctx = canvas.getContext("2d");
+            window.addEventListener("resize", resizeCanvas);
+            resizeCanvas();
+        }
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+
+        class Burung {
+            constructor() {
+                this.x = -50;
+                this.y = Math.random() * (canvas.height * 0.6) + 50;
+                this.size = Math.random() * 6 + 6;
+                this.speedX = Math.random() * 3 + 3;
+                this.speedY = Math.sin(this.x) * 1;
+                this.color = `hsl(${Math.random() * 40 + 200}, 85%, 60%)`; 
+                this.kepakan = Math.random() * 100;
+            }
+
+            update() {
+                this.x += this.speedX;
+                this.kepakan += 0.2;
+                this.y += Math.sin(this.kepakan) * 1.5;
+            }
+
+            draw() {
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                let wingOffsetY = Math.sin(this.kepakan) * this.size;
+                ctx.moveTo(this.x, this.y); 
+                ctx.lineTo(this.x - this.size, this.y - wingOffsetY); 
+                ctx.lineTo(this.x - this.size * 0.7, this.y + this.size * 0.2); 
+                ctx.lineTo(this.x - this.size * 1.5, this.y + this.size * 0.5); 
+                ctx.closePath();
+                ctx.fill();
             }
         }
 
-        // Format Tanggal Internasional ke Indonesia Terbaca
-        function formatTanggalIndo(tglStr) {
-            if (!tglStr) return "";
-            const ops = { year: 'numeric', month: 'long', day: 'numeric' };
-            return new Date(tglStr).toLocaleDateString('id-ID', ops);
+        function mulaiAnimasiBurung() {
+            birds = [];
+            for (let i = 0; i < 35; i++) {
+                setTimeout(() => {
+                    birds.push(new Burung());
+                }, i * 120);
+            }
+            animateBirds();
         }
 
-        // Cetak Unduh Laporan format CSV Offline
-        function downloadCSV() {
-            if(daftarTransaksi.length === 0) return alert("Tidak ada data transaksi untuk diekspor!");
-            let barisCsv = "Username,Hari,Tanggal,Bulan,Nama Barang / Kebutuhan,Harga (Rp),Jenis,ID_Transaksi\n";
-            
-            daftarTransaksi.forEach(item => {
-                barisCsv += `"${item.Username}","${item.Hari}","${item.Tanggal}","${item.Bulan}","${item["Nama Barang / Kebutuhan"]}",${item["Harga (Rp)"]},"${item.Jenis}","${item.ID_Transaksi}"\n`;
+        function animateBirds() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            birds.forEach((bird, index) => {
+                bird.update();
+                bird.draw();
+                if (bird.x > canvas.width + 50) {
+                    birds.splice(index, 1);
+                }
             });
-
-            const blob = new Blob([barisCsv], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement("a");
-            link.setAttribute("href", url);
-            link.setAttribute("download", `Laporan_Keuangan_${currentUser}.csv`);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        }
-
-        // Log out Aplikasi Balik
-        function logout() {
-            localStorage.removeItem("keuangan_user");
-            alert("Berhasil keluar dari sesi akun.");
-            location.reload(); 
+            if (birds.length > 0) {
+                requestAnimationFrame(animateBirds);
+            } else {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }
         }
     </script>
 </body>
